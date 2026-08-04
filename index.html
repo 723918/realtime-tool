@@ -78,7 +78,7 @@
 
     async function initUserApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderUserView(data.status, data.question);
         }
