@@ -4,49 +4,36 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理・スクリーン投影 | Live Screen</title>
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Supabase JS (v2) -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    /* ニコニコ動画風 弾幕アニメーション */
-    @keyframes danmaku {
-      0% {
-        transform: translateX(100vw);
-      }
-      100% {
-        transform: translateX(-100%);
-      }
-    }
-
     .danmaku-item {
       position: absolute;
       white-space: nowrap;
-      will-change: transform;
-      animation: danmaku 7.5s linear forwards;
-      pointer-events: none;
+      font-size: 2.25rem;
       font-weight: 800;
-      text-shadow: 
-        2px  2px 0px #000,
-       -2px  2px 0px #000,
-        2px -2px 0px #000,
-       -2px -2px 0px #000;
+      color: #ffffff;
+      text-shadow: 2px 2px 0px #000, -2px 2px 0px #000, 2px -2px 0px #000, -2px -2px 0px #000;
+      will-change: transform;
+      animation: danmaku 8s linear forwards;
+    }
+    @keyframes danmaku {
+      from { transform: translateX(100vw); }
+      to { transform: translateX(-100%); }
     }
   </style>
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between overflow-hidden relative select-none">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrOQ_gsfAxkGA';
+    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrDQ_gsfAxkGA';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   </script>
 
-  <!-- 1. 管理操作ヘッダー（投影画面上部に固定） -->
+  <!-- 1. 管理操作ヘッダー -->
   <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
     <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
-      
-      <!-- ステータス表示 -->
       <div class="flex items-center gap-3">
         <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
         <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
@@ -54,160 +41,104 @@
         </span>
       </div>
 
-      <!-- 操作フォーム -->
-      <div class="flex flex-1 max-w-2xl gap-2 items-center">
-        <input 
-          type="text" 
-          id="question-input" 
-          placeholder="投影する質問文を入力..." 
-          class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
-        />
-        <button 
-          id="btn-show-question"
-          class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-md active:scale-95 flex-shrink-0"
-        >
+      <div class="flex-1 max-w-xl flex gap-2">
+        <input type="text" id="question-input" placeholder="投映する質問文を入力..." 
+          class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+        <button onclick="updateState('active')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
           質問を表示する
         </button>
-        <button 
-          id="btn-set-waiting"
-          class="bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-bold transition-all flex-shrink-0"
-        >
+        <button onclick="updateState('waiting')" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
           待機中にする
         </button>
       </div>
-
     </div>
   </header>
 
   <!-- 2. 投影スクリーンエリア -->
   <main class="flex-1 flex items-center justify-center p-8 relative">
-    <div class="text-center max-w-4xl z-10">
-      
-      <!-- 待機表示 -->
-      <div id="screen-waiting" class="space-y-4">
-        <h1 class="text-4xl sm:text-5xl font-black tracking-tight text-slate-400 animate-pulse">
-          ～ まもなく開始いたします ～
-        </h1>
-        <p class="text-slate-500 text-lg">スマートフォンで手元の画面をご覧ください</p>
-      </div>
-
-      <!-- 質問表示 -->
-      <div id="screen-question" class="hidden space-y-6">
-        <span class="inline-block text-indigo-400 font-bold tracking-widest uppercase text-sm border border-indigo-500/30 bg-indigo-500/10 px-5 py-2 rounded-full shadow-inner">
-          CURRENT QUESTION
-        </span>
-        <h1 id="screen-question-text" class="text-4xl sm:text-6xl font-black text-white leading-tight drop-shadow-lg">
-          <!-- 質問テキストがここに挿入されます -->
-        </h1>
-      </div>
-
+    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto">
+      <!-- JavaScriptで動的書き換え -->
     </div>
+
+    <!-- 3. 弾幕コメントレイヤー -->
+    <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
   </main>
 
-  <!-- 3. 弾幕コメント用レイヤー（画面全体を覆う） -->
-  <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
-
   <script>
+    const statusBadge = document.getElementById('current-status-badge');
+    const displayArea = document.getElementById('display-area');
     const questionInput = document.getElementById('question-input');
-    const btnShowQuestion = document.getElementById('btn-show-question');
-    const btnSetWaiting = document.getElementById('btn-set-waiting');
-    
-    const currentStatusBadge = document.getElementById('current-status-badge');
-    const screenWaiting = document.getElementById('screen-waiting');
-    const screenQuestion = document.getElementById('screen-question');
-    const screenQuestionText = document.getElementById('screen-question-text');
     const danmakuContainer = document.getElementById('danmaku-container');
 
-    // スクリーン表示の切り替え
-    function updateScreen(state) {
-      if (!state) return;
-      
-      if (state.status === 'question') {
-        currentStatusBadge.textContent = '質問表示中';
-        currentStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        
-        screenWaiting.classList.add('hidden');
-        screenQuestion.classList.remove('hidden');
-        screenQuestionText.textContent = state.question_text;
-        questionInput.value = state.question_text || '';
+    // 画面状態の描画更新
+    function renderScreen(status, question) {
+      if (status === 'active') {
+        statusBadge.textContent = '質問投映中';
+        statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
+        displayArea.innerHTML = `
+          <div class="inline-block bg-indigo-500/10 text-indigo-400 font-bold px-4 py-1.5 rounded-full text-sm mb-6 border border-indigo-500/20">
+            Q. CURRENT QUESTION
+          </div>
+          <h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-wide drop-shadow-md">
+            ${question || '（質問文が設定されていません）'}
+          </h1>
+        `;
       } else {
-        currentStatusBadge.textContent = '待機中';
-        currentStatusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30';
-        
-        screenQuestion.classList.add('hidden');
-        screenWaiting.classList.remove('hidden');
+        statusBadge.textContent = '待機中';
+        statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600';
+        displayArea.innerHTML = `
+          <h1 class="text-3xl md:text-5xl font-bold text-slate-400 tracking-wider">
+            〜 まもなく開始いたします 〜
+          </h1>
+          <p class="text-slate-500 mt-4 text-base">スマートフォンで手元の画面をご覧ください</p>
+        `;
       }
     }
 
-    // データベース状態の更新
-    async function updateAppState(status, questionText = '') {
-      const { error } = await supabase
-        .from('app_state')
-        .update({ status: status, question_text: questionText })
-        .eq('id', 1);
-
-      if (error) {
-        alert('更新エラー: ' + error.message);
+    // 状態の初期読み込み＆リアルタイム監視
+    async function initApp() {
+      const { data } = await supabase.from('app_state').select('*').eq('id', 1).single();
+      if (data) {
+        renderScreen(data.status, data.question);
+        if (data.question) questionInput.value = data.question;
       }
+
+      // app_state の変更をリアルタイム検知
+      supabase.channel('admin_app_state')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
+          renderScreen(payload.new.status, payload.new.question);
+        })
+        .subscribe();
+
+      // comments（弾幕）の追加をリアルタイム検知
+      supabase.channel('admin_comments')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+          spawnDanmaku(payload.new.text);
+        })
+        .subscribe();
     }
 
-    // イベントリスナー
-    btnShowQuestion.addEventListener('click', () => {
-      const text = questionInput.value.trim();
-      if (!text) {
-        alert('質問テキストを入力してください');
-        return;
-      }
-      updateAppState('question', text);
-    });
+    // 管理操作：DBのステータス更新
+    async function updateState(newStatus) {
+      const qText = questionInput.value.trim();
+      await supabase.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
+    }
 
-    btnSetWaiting.addEventListener('click', () => {
-      updateAppState('waiting', '');
-    });
-
-    // 弾幕（ニコニコ動画風テキスト流し）描画処理
+    // 弾幕メッセージの生成
     function spawnDanmaku(text) {
       const el = document.createElement('div');
-      el.className = 'danmaku-item text-3xl sm:text-5xl text-white';
+      el.className = 'danmaku-item';
       el.textContent = text;
-
-      // 画面の高さ（15% ～ 80%）にランダム配置して被りを軽減
-      const topPercent = Math.floor(Math.random() * 65) + 15;
-      el.style.top = `${topPercent}%`;
+      
+      // 縦位置をランダムに配置（画面の上10%〜80%の間）
+      const topPos = Math.floor(Math.random() * 70) + 10;
+      el.style.top = `${topPos}%`;
 
       danmakuContainer.appendChild(el);
-
-      // 流れ終わったらDOMを削除
-      el.addEventListener('animationend', () => {
-        el.remove();
-      });
+      el.addEventListener('animationend', () => el.remove());
     }
 
-    // 初期化処理
-    async function init() {
-      const { data } = await supabase.from('app_state').select('*').eq('id', 1).single();
-      if (data) updateScreen(data);
-    }
-
-    // Realtime 監視 1: app_state (画面切り替え)
-    supabase
-      .channel('admin:app_state')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-        updateScreen(payload.new);
-      })
-      .subscribe();
-
-    // Realtime 監視 2: comments (弾幕生成)
-    supabase
-      .channel('admin:comments')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
-        if (payload.new && payload.new.content) {
-          spawnDanmaku(payload.new.content);
-        }
-      })
-      .subscribe();
-
-    init();
+    initApp();
   </script>
 </body>
 </html>
