@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理・スクリーン投影 | Live Screen</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
   <style>
     .danmaku-item {
       position: absolute;
@@ -24,12 +24,6 @@
   </style>
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between overflow-hidden relative select-none">
-
-  <script>
-    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrDQ_gsfAxkGA';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  </script>
 
   <!-- 1. 管理操作ヘッダー -->
   <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
@@ -65,6 +59,14 @@
   </main>
 
   <script>
+    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrDQ_gsfAxkGA';
+    
+    // ライブラリの安全な初期化
+    const supabaseClient = window.supabase.createClient 
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const statusBadge = document.getElementById('current-status-badge');
     const displayArea = document.getElementById('display-area');
     const questionInput = document.getElementById('question-input');
@@ -95,45 +97,48 @@
       }
     }
 
-    // 状態の初期読み込み＆リアルタイム監視
+    // 初期読み込み＆リアルタイム通信
     async function initApp() {
-      const { data } = await supabase.from('app_state').select('*').eq('id', 1).single();
-      if (data) {
-        renderScreen(data.status, data.question);
-        if (data.question) questionInput.value = data.question;
+      try {
+        const { data, error } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
+        if (data) {
+          renderScreen(data.status, data.question);
+          if (data.question) questionInput.value = data.question;
+        } else {
+          renderScreen('waiting', '');
+        }
+
+        // リアルタイム検知
+        supabaseClient.channel('admin_app_state')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
+            renderScreen(payload.new.status, payload.new.question);
+          })
+          .subscribe();
+
+        supabaseClient.channel('admin_comments')
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
+            spawnDanmaku(payload.new.text);
+          })
+          .subscribe();
+      } catch (e) {
+        console.error(e);
+        renderScreen('waiting', '');
       }
-
-      // app_state の変更をリアルタイム検知
-      supabase.channel('admin_app_state')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-          renderScreen(payload.new.status, payload.new.question);
-        })
-        .subscribe();
-
-      // comments（弾幕）の追加をリアルタイム検知
-      supabase.channel('admin_comments')
-        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
-          spawnDanmaku(payload.new.text);
-        })
-        .subscribe();
     }
 
-    // 管理操作：DBのステータス更新
+    // ステータス更新
     async function updateState(newStatus) {
       const qText = questionInput.value.trim();
-      await supabase.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
+      await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
     }
 
-    // 弾幕メッセージの生成
+    // 弾幕メッセージ生成
     function spawnDanmaku(text) {
       const el = document.createElement('div');
       el.className = 'danmaku-item';
       el.textContent = text;
-      
-      // 縦位置をランダムに配置（画面の上10%〜80%の間）
       const topPos = Math.floor(Math.random() * 70) + 10;
       el.style.top = `${topPos}%`;
-
       danmakuContainer.appendChild(el);
       el.addEventListener('animationend', () => el.remove());
     }
