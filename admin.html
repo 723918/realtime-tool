@@ -38,10 +38,10 @@
       <div class="flex-1 max-w-xl flex gap-2">
         <input type="text" id="question-input" placeholder="投映する質問文を入力..." 
           class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-        <button onclick="updateState('active')" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
+        <button id="btn-active" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
           質問を表示する
         </button>
-        <button onclick="updateState('waiting')" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
+        <button id="btn-waiting" type="button" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
           待機中にする
         </button>
       </div>
@@ -62,7 +62,6 @@
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
     
-    // ライブラリの安全な初期化
     const supabaseClient = window.supabase.createClient 
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -71,8 +70,10 @@
     const displayArea = document.getElementById('display-area');
     const questionInput = document.getElementById('question-input');
     const danmakuContainer = document.getElementById('danmaku-container');
+    const btnActive = document.getElementById('btn-active');
+    const btnWaiting = document.getElementById('btn-waiting');
 
-    // 画面状態の描画更新
+    // 画面の描画更新
     function renderScreen(status, question) {
       if (status === 'active') {
         statusBadge.textContent = '質問投映中';
@@ -97,10 +98,34 @@
       }
     }
 
-    // 初期読み込み＆リアルタイム通信
+    // ボタンのクリックイベント登録
+    btnActive.addEventListener('click', () => updateState('active'));
+    btnWaiting.addEventListener('click', () => updateState('waiting'));
+
+    // ステータス更新処理
+    async function updateState(newStatus) {
+      const qText = questionInput.value.trim();
+      renderScreen(newStatus, qText);
+
+      const { error } = await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
+      if (error) console.error('DB更新エラー:', error);
+    }
+
+    // 弾幕メッセージ生成
+    function spawnDanmaku(text) {
+      const el = document.createElement('div');
+      el.className = 'danmaku-item';
+      el.textContent = text;
+      const topPos = Math.floor(Math.random() * 70) + 10;
+      el.style.top = `${topPos}%`;
+      danmakuContainer.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    // 初期化＆リアルタイム検知
     async function initApp() {
       try {
-        const { data, error } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
         if (data) {
           renderScreen(data.status, data.question);
           if (data.question) questionInput.value = data.question;
@@ -108,7 +133,7 @@
           renderScreen('waiting', '');
         }
 
-        // リアルタイム検知
+        // リアルタイム変更の受信
         supabaseClient.channel('admin_app_state')
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
             renderScreen(payload.new.status, payload.new.question);
@@ -124,23 +149,6 @@
         console.error(e);
         renderScreen('waiting', '');
       }
-    }
-
-    // ステータス更新
-    async function updateState(newStatus) {
-      const qText = questionInput.value.trim();
-      await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
-    }
-
-    // 弾幕メッセージ生成
-    function spawnDanmaku(text) {
-      const el = document.createElement('div');
-      el.className = 'danmaku-item';
-      el.textContent = text;
-      const topPos = Math.floor(Math.random() * 70) + 10;
-      el.style.top = `${topPos}%`;
-      danmakuContainer.appendChild(el);
-      el.addEventListener('animationend', () => el.remove());
     }
 
     initApp();
