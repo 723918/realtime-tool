@@ -100,8 +100,17 @@
       const text = commentInput.value.trim();
       if (!text) return;
 
-      // 質問文（question_text）も一緒に保存
-      await supabaseClient.from('comments').insert([{ text: text, question_text: currentQuestion }]);
+      // もしメモリ上の質問文が空なら、直接DBから最新の質問文を取得して確実紐付け
+      let qText = currentQuestion;
+      if (!qText) {
+        const { data } = await supabaseClient.from('app_state').select('question').eq('id', 1).maybeSingle();
+        if (data && data.question) qText = data.question;
+      }
+
+      await supabaseClient.from('comments').insert([{ 
+        text: text, 
+        question_text: qText || '一般的な質問' 
+      }]);
       
       commentInput.value = '';
       sendMsg.classList.remove('hidden');
