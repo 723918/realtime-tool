@@ -56,31 +56,37 @@
     </div>
   </header>
 
-  <!-- 2. 投影スクリーンエリア（通常時表示） -->
+  <!-- 2. 投影スクリーンエリア -->
   <main id="view-screen" class="flex-1 flex items-center justify-center p-8 relative">
     <div id="display-area" class="text-center z-10 max-w-4xl mx-auto">
       <!-- JavaScriptで動的書き換え -->
     </div>
 
-    <!-- 弾幕コメントレイヤー -->
     <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
   </main>
 
-  <!-- 3. コメント記録一覧画面（切り替え時表示） -->
+  <!-- 3. 質問ごとのコメント記録一覧画面 -->
   <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col">
     <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
       
-      <!-- 記録画面の見出し＆操作ボタン -->
-      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
+      <div class="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-slate-800">
         <div>
           <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-            📝 寄せられたコメント記録一覧
+            📝 質問ごとのコメント記録
           </h2>
-          <p class="text-xs text-slate-400 mt-1">送信されたコメントが届いた順に一覧表示されます</p>
+          <p class="text-xs text-slate-400 mt-1">対象の質問を選択して回答を絞り込めます</p>
         </div>
-        <button id="btn-download-csv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow">
-          📥 CSV出力（Excel保存）
-        </button>
+
+        <!-- 質問フィルタリング用ドロップダウン -->
+        <div class="flex items-center gap-2">
+          <select id="select-question-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 max-w-xs">
+            <!-- 動的追加 -->
+          </select>
+
+          <button id="btn-download-csv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow whitespace-nowrap">
+            📥 この質問のCSV出力
+          </button>
+        </div>
       </div>
 
       <!-- コメント一覧リスト -->
@@ -112,12 +118,14 @@
     const headerCommentCount = document.getElementById('header-comment-count');
     const logList = document.getElementById('log-list');
     const btnDownloadCsv = document.getElementById('btn-download-csv');
+    const selectQuestionFilter = document.getElementById('select-question-filter');
 
     let allComments = [];
-    let isShowingLogs = false; // 現在記録画面を開いているか
+    let isShowingLogs = false;
+    let currentActiveQuestion = '';
 
-    // 画面の描画更新
     function renderScreen(status, question) {
+      currentActiveQuestion = question || '';
       if (status === 'active') {
         statusBadge.textContent = '質問投映中';
         statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
@@ -141,13 +149,12 @@
       }
     }
 
-    // ボタンのイベント登録
     btnActive.addEventListener('click', () => updateState('active'));
     btnWaiting.addEventListener('click', () => updateState('waiting'));
     btnToggleView.addEventListener('click', toggleViewMode);
     btnDownloadCsv.addEventListener('click', downloadCSV);
+    selectQuestionFilter.addEventListener('change', renderLogs);
 
-    // 画面モードの切り替え（投映 ↔ 記録一覧）
     function toggleViewMode() {
       isShowingLogs = !isShowingLogs;
 
@@ -156,6 +163,9 @@
         viewLogs.classList.remove('hidden');
         btnToggleView.innerHTML = `<span>📺 投映画面に戻る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
         btnToggleView.className = 'bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
+        
+        // 記録画面を開いた際、現在の質問を選んだ状態にする
+        updateFilterOptions();
       } else {
         viewLogs.classList.add('hidden');
         viewScreen.classList.remove('hidden');
@@ -172,13 +182,12 @@
       if (error) console.error('DB更新エラー:', error);
     }
 
-    // 新規コメント受信時
     function handleNewComment(commentObj, isLive = true) {
       if (!allComments.some(c => c.id === commentObj.id)) {
         allComments.unshift(commentObj);
+        updateFilterOptions();
         renderLogs();
 
-        // 投映画面の時だけ弾幕を飛ばす
         if (isLive) {
           spawnDanmaku(commentObj.text);
         }
@@ -195,16 +204,34 @@
       el.addEventListener('animationend', () => el.remove());
     }
 
-    // 記録リストの描画
+    // フィルターの選択肢（過去にあった質問リスト）を自動生成
+    function updateFilterOptions() {
+      const questions = Array.from(new Set(allComments.map(c => c.question_text || '（未分類/過去の質問）')));
+      
+      const selectedVal = selectQuestionFilter.value || currentActiveQuestion || questions[0] || '';
+
+      selectQuestionFilter.innerHTML = questions.map(q => 
+        `<option value="${escapeHtml(q)}" ${q === selectedVal ? 'selected' : ''}>Q: ${escapeHtml(q)}</option>`
+      ).join('');
+
+      if (questions.length === 0) {
+        selectQuestionFilter.innerHTML = '<option value="">質問データなし</option>';
+      }
+    }
+
+    // 選択中の質問のコメントのみを表示
     function renderLogs() {
       headerCommentCount.textContent = allComments.length;
+      const targetQuestion = selectQuestionFilter.value;
 
-      if (allComments.length === 0) {
-        logList.innerHTML = '<p class="text-slate-500 text-center py-12 text-sm col-span-full">まだコメントはありません。</p>';
+      const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
+
+      if (filtered.length === 0) {
+        logList.innerHTML = '<p class="text-slate-500 text-center py-12 text-sm col-span-full">この質問に対するコメントはまだありません。</p>';
         return;
       }
 
-      logList.innerHTML = allComments.map((c, index) => {
+      logList.innerHTML = filtered.map((c, index) => {
         const timeStr = c.created_at ? new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '直前';
         const isLatest = index === 0 ? 'border-indigo-500/50 bg-indigo-950/40' : 'border-slate-800 bg-slate-900/60';
 
@@ -217,15 +244,19 @@
       }).join('');
     }
 
-    // CSV出力
     function downloadCSV() {
-      if (allComments.length === 0) {
+      const targetQuestion = selectQuestionFilter.value;
+      const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
+
+      if (filtered.length === 0) {
         alert('出力できるコメントがありません。');
         return;
       }
 
-      let csvContent = '\uFEFF日時,コメント内容\n';
-      allComments.forEach(c => {
+      let csvContent = `\uFEFF質問内容: "${targetQuestion.replace(/"/g, '""')}"\n`;
+      csvContent += '日時,コメント内容\n';
+
+      filtered.forEach(c => {
         const time = c.created_at ? new Date(c.created_at).toLocaleString('ja-JP') : '';
         const text = `"${(c.text || '').replace(/"/g, '""')}"`;
         csvContent += `${time},${text}\n`;
@@ -235,7 +266,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `授業コメント記録_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `記録_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -244,7 +275,6 @@
       return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // 初期化＆リアルタイム検知
     async function initApp() {
       try {
         const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
@@ -255,14 +285,13 @@
           renderScreen('waiting', '');
         }
 
-        // 過去のコメントを取得
         const { data: commentsData } = await supabaseClient.from('comments').select('*').order('created_at', { ascending: false });
         if (commentsData) {
           allComments = commentsData;
+          updateFilterOptions();
           renderLogs();
         }
 
-        // リアルタイム検知
         supabaseClient.channel('admin_app_state')
           .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
             renderScreen(payload.new.status, payload.new.question);
