@@ -125,7 +125,7 @@
     // 初期化＆リアルタイム検知
     async function initApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderScreen(data.status, data.question);
           if (data.question) questionInput.value = data.question;
