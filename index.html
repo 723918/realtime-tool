@@ -5,15 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>イベント参加用 | Live App</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6">
-
-  <script>
-    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrDQ_gsfAxkGA';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  </script>
 
   <!-- メインコンテンツ領域 -->
   <main class="max-w-md mx-auto w-full my-auto">
@@ -58,6 +52,13 @@
   </footer>
 
   <script>
+    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_8y8sUdejOFwoCCGpLSqrDQ_gsfAxkGA';
+    
+    const supabaseClient = window.supabase.createClient 
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
     const viewWaiting = document.getElementById('view-waiting');
     const viewActive = document.getElementById('view-active');
     const questionText = document.getElementById('question-text');
@@ -76,16 +77,20 @@
     }
 
     async function initUserApp() {
-      const { data } = await supabase.from('app_state').select('*').eq('id', 1).single();
-      if (data) {
-        renderUserView(data.status, data.question);
-      }
+      try {
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).single();
+        if (data) {
+          renderUserView(data.status, data.question);
+        }
 
-      supabase.channel('user_app_state')
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-          renderUserView(payload.new.status, payload.new.question);
-        })
-        .subscribe();
+        supabaseClient.channel('user_app_state')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
+            renderUserView(payload.new.status, payload.new.question);
+          })
+          .subscribe();
+      } catch(e) {
+        console.error(e);
+      }
     }
 
     async function sendComment(e) {
@@ -93,7 +98,7 @@
       const text = commentInput.value.trim();
       if (!text) return;
 
-      await supabase.from('comments').insert([{ text: text }]);
+      await supabaseClient.from('comments').insert([{ text: text }]);
       
       commentInput.value = '';
       sendMsg.classList.remove('hidden');
