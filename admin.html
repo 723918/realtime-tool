@@ -144,7 +144,6 @@
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // URLパラメータからルームIDを取得（指定がなければ 'default'）
     const urlParams = new URLSearchParams(window.location.search);
     const ROOM_ID = urlParams.get('room') || 'default';
 
@@ -226,16 +225,13 @@
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
 
-      const { data } = await supabaseClient.from('app_state').select('*').eq('room_id', ROOM_ID).maybeSingle();
-      if (data) {
-        await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', data.id);
-      } else {
-        await supabaseClient.from('app_state').insert([{ room_id: ROOM_ID, status: newStatus, question: qText }]);
-      }
+      // 強制的に ID=1 を更新（安全設計）
+      const { error } = await supabaseClient.from('app_state').upsert({ id: 1, room_id: ROOM_ID, status: newStatus, question: qText });
+      if (error) console.error('更新エラー:', error);
     }
 
     function handleNewComment(commentObj, isLive = true) {
-      if (commentObj.room_id !== ROOM_ID) return;
+      if (commentObj.room_id && commentObj.room_id !== ROOM_ID) return;
       if (!allComments.some(c => c.id === commentObj.id)) {
         allComments.unshift(commentObj);
         updateFilterOptions();
@@ -364,7 +360,7 @@
     }
 
     async function loadPollStocks() {
-      const { data } = await supabaseClient.from('polls').select('*').eq('room_id', ROOM_ID).order('id', { ascending: false });
+      const { data } = await supabaseClient.from('polls').select('*').order('id', { ascending: false });
       const container = document.getElementById('poll-stock-list');
       if (!data || data.length === 0) {
         container.innerHTML = '<p class="text-xs text-slate-500 py-2">作成済みのアンケートはありません。</p>';
@@ -409,7 +405,7 @@
     }
 
     async function startPoll(id) {
-      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('room_id', ROOM_ID).eq('is_active', true);
+      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('is_active', true);
       await supabaseClient.from('polls').update({ is_active: true, is_published: true }).eq('id', id);
       loadPollStocks();
       checkActivePoll();
@@ -435,7 +431,7 @@
     }
 
     async function checkActivePoll() {
-      const { data } = await supabaseClient.from('polls').select('*').eq('room_id', ROOM_ID).eq('is_active', true).order('id', { ascending: false }).limit(1);
+      const { data } = await supabaseClient.from('polls').select('*').eq('is_active', true).order('id', { ascending: false }).limit(1);
       
       if (data && data.length > 0) {
         currentPoll = data[0];
@@ -496,7 +492,8 @@
 
     async function initApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('room_id', ROOM_ID).maybeSingle();
+        // ID=1 の状態を直接読み込み（エラー防止）
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderScreen(data.status, data.question);
           if (data.question) questionInput.value = data.question;
@@ -504,7 +501,7 @@
           renderScreen('waiting', '');
         }
 
-        const { data: commentsData } = await supabaseClient.from('comments').select('*').eq('room_id', ROOM_ID).order('created_at', { ascending: false });
+        const { data: commentsData } = await supabaseClient.from('comments').select('*').order('created_at', { ascending: false });
         if (commentsData) {
           allComments = commentsData;
           updateFilterOptions();
@@ -515,7 +512,7 @@
 
         supabaseClient.channel('admin_app_state')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-            if (payload.new && payload.new.room_id === ROOM_ID) {
+            if (payload.new) {
               renderScreen(payload.new.status, payload.new.question);
             }
           })
