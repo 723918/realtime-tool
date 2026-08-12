@@ -29,10 +29,7 @@
   <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
     <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-xs uppercase font-bold text-slate-400">ROOM:</span>
-        <span id="current-room-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-mono">
-          default
-        </span>
+        <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
         <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
           取得中...
         </span>
@@ -136,18 +133,13 @@
   </main>
 
   <script>
-    /* 授業用 (realtime-tool) の Supabase 情報 */
+    /* 授業用 (realtime-tool) 専用 Supabase 接続情報 */
     const SUPABASE_URL = 'https://fcdatnawceicpogimlyx.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGF0bmF3Y2VpY3BvZ2ltbHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjkwNDMsImV4cCI6MjEwMTUwNTA0M30.7IicVwInXzE2Q1TzImsi-R_6t8G4aE9nJpQ5-xX8a5g';
     
     const supabaseClient = window.supabase.createClient 
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-    const urlParams = new URLSearchParams(window.location.search);
-    const ROOM_ID = urlParams.get('room') || 'default';
-
-    document.getElementById('current-room-badge').textContent = ROOM_ID;
 
     const statusBadge = document.getElementById('current-status-badge');
     const displayArea = document.getElementById('display-area');
@@ -225,13 +217,11 @@
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
 
-      // 強制的に ID=1 を更新（安全設計）
-      const { error } = await supabaseClient.from('app_state').upsert({ id: 1, room_id: ROOM_ID, status: newStatus, question: qText });
+      const { error } = await supabaseClient.from('app_state').upsert({ id: 1, status: newStatus, question: qText });
       if (error) console.error('更新エラー:', error);
     }
 
     function handleNewComment(commentObj, isLive = true) {
-      if (commentObj.room_id && commentObj.room_id !== ROOM_ID) return;
       if (!allComments.some(c => c.id === commentObj.id)) {
         allComments.unshift(commentObj);
         updateFilterOptions();
@@ -320,7 +310,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `記録_${ROOM_ID}_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `記録_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -343,7 +333,6 @@
       if (options.length < 2) return alert('選択肢は最低2つ入力してください');
 
       const { error } = await supabaseClient.from('polls').insert([{
-        room_id: ROOM_ID,
         question: question,
         options: options,
         is_active: false,
@@ -492,7 +481,6 @@
 
     async function initApp() {
       try {
-        // ID=1 の状態を直接読み込み（エラー防止）
         const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderScreen(data.status, data.question);
