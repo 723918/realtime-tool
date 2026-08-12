@@ -29,7 +29,10 @@
   <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
     <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
       <div class="flex items-center gap-3">
-        <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
+        <span class="text-xs uppercase font-bold text-slate-400">ROOM:</span>
+        <span id="current-room-badge" class="px-2.5 py-1 text-xs font-bold rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 font-mono">
+          default
+        </span>
         <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
           取得中...
         </span>
@@ -48,7 +51,7 @@
 
       <div>
         <button id="btn-toggle-view" type="button" class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow">
-          <span>📝 記録一覧を見る</span>
+          <span>📝 記録・アンケート管理</span>
           <span id="header-comment-count" class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">0</span>
         </button>
       </div>
@@ -56,19 +59,58 @@
   </header>
 
   <!-- 2. 投影スクリーンエリア -->
-  <main id="view-screen" class="flex-1 flex items-center justify-center p-8 relative">
-    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto pointer-events-none">
-      <!-- JavaScriptで動的書き換え -->
+  <main id="view-screen" class="flex-1 flex flex-col items-center justify-center p-8 relative">
+    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto pointer-events-none mb-6">
     </div>
 
-    <!-- 弾幕コメントレイヤー -->
+    <!-- 📊 リアルタイムアンケート表示エリア（投影用） -->
+    <div id="poll-active-view" class="hidden z-10 w-full max-w-2xl bg-slate-950/90 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl backdrop-blur">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <div class="flex items-center gap-2">
+          <span class="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-bold text-xs rounded-full border border-cyan-500/30">📊 アンケート集計中</span>
+          <span id="poll-vis-badge" class="px-2.5 py-1 font-bold text-xs rounded-full"></span>
+        </div>
+        <h3 id="active-poll-title" class="font-bold text-yellow-300 text-lg"></h3>
+      </div>
+      <div id="poll-results-bars" class="space-y-4"></div>
+      <div class="text-right text-xs text-slate-400 mt-4">総投票数: <span id="total-votes-count" class="font-bold text-cyan-400 text-sm">0</span> 票</div>
+    </div>
+
     <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
   </main>
 
-  <!-- 3. 質問ごとのコメント記録一覧画面 -->
-  <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col">
-    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
+  <!-- 3. 質問ごとのコメント記録＆アンケート管理画面 -->
+  <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col gap-6">
+    
+    <!-- アンケート管理パネル -->
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+      <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-cyan-400">
+        <span>📊 アンケートの新規作成・事前ストック</span>
+      </h2>
       
+      <!-- 新規作成フォーム -->
+      <div class="space-y-3 mb-6 pb-6 border-b border-slate-800">
+        <input type="text" id="poll-question-input" placeholder="質問を入力（例：今日の授業内容は分かりやすかったですか？）" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-400">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <input type="text" id="poll-opt-0" value="はい" placeholder="選択肢1" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-1" value="いいえ" placeholder="選択肢2" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-2" placeholder="選択肢3（任意）" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-3" placeholder="選択肢4（任意）" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+        </div>
+        <button type="button" onclick="createPollStock()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 font-bold rounded-lg text-sm transition-all shadow-md">
+          ➕ アンケートを保存（作成）する
+        </button>
+      </div>
+
+      <!-- 保存済みアンケート一覧 -->
+      <h3 class="text-sm font-bold text-slate-300 mb-3">📋 作成済みアンケート一覧（公開／伏せるの切り替え）</h3>
+      <div id="poll-stock-list" class="space-y-3 max-h-60 overflow-y-auto pr-1">
+        <p class="text-xs text-slate-500 py-2">作成済みのアンケートはありません。</p>
+      </div>
+    </div>
+
+    <!-- コメント記録一覧 -->
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
       <div class="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-slate-800">
         <div>
           <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
@@ -87,20 +129,25 @@
         </div>
       </div>
 
-      <div id="log-list" class="flex-1 overflow-y-auto max-h-[60vh] grid grid-cols-1 md:grid-cols-2 gap-3 pr-2">
+      <div id="log-list" class="flex-1 overflow-y-auto max-h-[40vh] grid grid-cols-1 md:grid-cols-2 gap-3 pr-2">
         <p class="text-slate-500 text-center py-12 text-sm col-span-full">まだコメントはありません。</p>
       </div>
-
     </div>
   </main>
 
   <script>
-    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
+    const SUPABASE_URL = 'https://qeazxtwhygvwjdnfrbqc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlYXp4dHdoeWd2d2pkbmZyYnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MzMzODQsImV4cCI6MjEwMTUwOTM4NH0.w33yFeFNluFhMxUy2vJgk3Hb8wJB61mGl-mCG4Uuvps';
     
     const supabaseClient = window.supabase.createClient 
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // URLパラメータからルームIDを取得（指定がなければ 'default'）
+    const urlParams = new URLSearchParams(window.location.search);
+    const ROOM_ID = urlParams.get('room') || 'default';
+
+    document.getElementById('current-room-badge').textContent = ROOM_ID;
 
     const statusBadge = document.getElementById('current-status-badge');
     const displayArea = document.getElementById('display-area');
@@ -120,9 +167,9 @@
     let allComments = [];
     let isShowingLogs = false;
     let currentActiveQuestion = '';
+    let currentPoll = null;
 
-    // --- 【重なり防止ロジック用変数】 ---
-    const TOTAL_LANES = 6; // 6つの縦ライン（行）を用意
+    const TOTAL_LANES = 6;
     let lastUsedLaneIndex = -1;
 
     function renderScreen(status, question) {
@@ -135,7 +182,7 @@
             Q. CURRENT QUESTION
           </div>
           <h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-wide drop-shadow-md">
-            ${question || '（質問文が設定されていません）'}
+            ${escapeHtml(question) || '（質問文が設定されていません）'}
           </h1>
         `;
       } else {
@@ -165,10 +212,11 @@
         btnToggleView.innerHTML = `<span>📺 投映画面に戻る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
         btnToggleView.className = 'bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
         updateFilterOptions();
+        loadPollStocks();
       } else {
         viewLogs.classList.add('hidden');
         viewScreen.classList.remove('hidden');
-        btnToggleView.innerHTML = `<span>📝 記録一覧を見る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
+        btnToggleView.innerHTML = `<span>📝 記録・アンケート管理</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
         btnToggleView.className = 'bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
       }
     }
@@ -177,11 +225,16 @@
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
 
-      const { error } = await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
-      if (error) console.error('DB更新エラー:', error);
+      const { data } = await supabaseClient.from('app_state').select('*').eq('room_id', ROOM_ID).maybeSingle();
+      if (data) {
+        await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', data.id);
+      } else {
+        await supabaseClient.from('app_state').insert([{ room_id: ROOM_ID, status: newStatus, question: qText }]);
+      }
     }
 
     function handleNewComment(commentObj, isLive = true) {
+      if (commentObj.room_id !== ROOM_ID) return;
       if (!allComments.some(c => c.id === commentObj.id)) {
         allComments.unshift(commentObj);
         updateFilterOptions();
@@ -193,22 +246,18 @@
       }
     }
 
-    // --- 【重なりを劇的に減らす弾幕生成処理】 ---
     function spawnDanmaku(text) {
       const el = document.createElement('div');
       el.className = 'danmaku-item';
       el.textContent = text;
 
-      // 1. 順番にレーン（行）を選び、連続で同じ行にならないように分散（順番繰り越し）
       lastUsedLaneIndex = (lastUsedLaneIndex + 1) % TOTAL_LANES;
       
-      // 2. 質問文（中央）を避けるため、画面の高さ 15% 〜 80% の範囲を6分割して配置
       const startPercent = 15;
       const endPercent = 80;
       const step = (endPercent - startPercent) / (TOTAL_LANES - 1);
       const laneTop = startPercent + (step * lastUsedLaneIndex);
 
-      // 3. 同じレーン内でも少し上下に揺らして自然に見せる（±2%の微ブレ）
       const randomOffset = (Math.random() * 4) - 2;
       el.style.top = `${laneTop + randomOffset}%`;
 
@@ -274,7 +323,7 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `記録_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
+      a.download = `記録_${ROOM_ID}_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
     }
@@ -283,9 +332,170 @@
       return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    /* --- 📊 アンケート高度管理機能 --- */
+    
+    async function createPollStock() {
+      const question = document.getElementById('poll-question-input').value.trim();
+      if (!question) return alert('質問文を入力してください');
+
+      const options = [];
+      for (let i = 0; i < 4; i++) {
+        const val = document.getElementById(`poll-opt-${i}`).value.trim();
+        if (val) options.push(val);
+      }
+      if (options.length < 2) return alert('選択肢は最低2つ入力してください');
+
+      const { error } = await supabaseClient.from('polls').insert([{
+        room_id: ROOM_ID,
+        question: question,
+        options: options,
+        is_active: false,
+        is_published: false
+      }]);
+
+      if (error) {
+        alert('作成エラー');
+        console.error(error);
+      } else {
+        document.getElementById('poll-question-input').value = '';
+        loadPollStocks();
+      }
+    }
+
+    async function loadPollStocks() {
+      const { data } = await supabaseClient.from('polls').select('*').eq('room_id', ROOM_ID).order('id', { ascending: false });
+      const container = document.getElementById('poll-stock-list');
+      if (!data || data.length === 0) {
+        container.innerHTML = '<p class="text-xs text-slate-500 py-2">作成済みのアンケートはありません。</p>';
+        return;
+      }
+
+      container.innerHTML = data.map(p => {
+        const optsStr = Array.isArray(p.options) ? p.options.join(' / ') : JSON.parse(p.options || '[]').join(' / ');
+        const isActive = p.is_active;
+        const isPub = p.is_published;
+
+        return `
+          <div class="bg-slate-900 border ${isActive ? 'border-cyan-500' : 'border-slate-800'} p-3 rounded-xl flex flex-wrap justify-between items-center gap-3">
+            <div class="flex-1 min-w-[200px]">
+              <div class="flex items-center gap-2 mb-1">
+                <span class="font-bold text-sm text-yellow-300">Q. ${escapeHtml(p.question)}</span>
+                ${isActive ? '<span class="text-[10px] bg-cyan-500/20 text-cyan-300 px-2 py-0.5 rounded font-bold border border-cyan-500/30">実施中</span>' : ''}
+              </div>
+              <p class="text-xs text-slate-400">選択肢: ${escapeHtml(optsStr)}</p>
+            </div>
+
+            <div class="flex items-center gap-2">
+              ${!isActive ? `
+                <button type="button" onclick="startPoll(${p.id})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg transition-colors">
+                  🚀 開始する
+                </button>
+              ` : `
+                <button type="button" onclick="togglePublish(${p.id}, ${!isPub})" class="px-3 py-1.5 ${isPub ? 'bg-amber-600 hover:bg-amber-500' : 'bg-emerald-600 hover:bg-emerald-500'} text-white font-bold text-xs rounded-lg transition-colors">
+                  ${isPub ? '🙈 伏せる（非公開）' : '👁️ 回答画面へ公開'}
+                </button>
+                <button type="button" onclick="stopPoll(${p.id})" class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg transition-colors">
+                  🛑 終了
+                </button>
+              `}
+              <button type="button" onclick="deletePoll(${p.id})" class="px-2 py-1.5 text-slate-500 hover:text-red-400 text-xs">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function startPoll(id) {
+      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('room_id', ROOM_ID).eq('is_active', true);
+      await supabaseClient.from('polls').update({ is_active: true, is_published: true }).eq('id', id);
+      loadPollStocks();
+      checkActivePoll();
+    }
+
+    async function togglePublish(id, targetState) {
+      await supabaseClient.from('polls').update({ is_published: targetState }).eq('id', id);
+      loadPollStocks();
+      checkActivePoll();
+    }
+
+    async function stopPoll(id) {
+      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('id', id);
+      loadPollStocks();
+      checkActivePoll();
+    }
+
+    async function deletePoll(id) {
+      if (!confirm('このアンケートを削除しますか？')) return;
+      await supabaseClient.from('polls').delete().eq('id', id);
+      loadPollStocks();
+      checkActivePoll();
+    }
+
+    async function checkActivePoll() {
+      const { data } = await supabaseClient.from('polls').select('*').eq('room_id', ROOM_ID).eq('is_active', true).order('id', { ascending: false }).limit(1);
+      
+      if (data && data.length > 0) {
+        currentPoll = data[0];
+        document.getElementById('poll-active-view').classList.remove('hidden');
+        document.getElementById('active-poll-title').textContent = currentPoll.question;
+        
+        const badge = document.getElementById('poll-vis-badge');
+        if (currentPoll.is_published) {
+          badge.textContent = '👁️ 公開中';
+          badge.className = 'px-2.5 py-1 bg-emerald-500/20 text-emerald-300 font-bold text-xs rounded-full border border-emerald-500/30';
+        } else {
+          badge.textContent = '🙈 伏せ中（非公開）';
+          badge.className = 'px-2.5 py-1 bg-amber-500/20 text-amber-300 font-bold text-xs rounded-full border border-amber-500/30';
+        }
+
+        fetchAndRenderResults(currentPoll);
+      } else {
+        currentPoll = null;
+        document.getElementById('poll-active-view').classList.add('hidden');
+      }
+    }
+
+    async function fetchAndRenderResults(poll) {
+      const { data: votes } = await supabaseClient.from('poll_votes').select('option_index').eq('poll_id', poll.id);
+      const total = votes ? votes.length : 0;
+      document.getElementById('total-votes-count').textContent = total;
+
+      const opts = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options || '[]');
+      const counts = new Array(opts.length).fill(0);
+      
+      if (votes) {
+        votes.forEach(v => {
+          if (counts[v.option_index] !== undefined) counts[v.option_index]++;
+        });
+      }
+
+      const container = document.getElementById('poll-results-bars');
+      container.innerHTML = '';
+
+      opts.forEach((opt, idx) => {
+        const count = counts[idx];
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        
+        const barHtml = `
+          <div>
+            <div class="flex justify-between text-xs font-semibold mb-1">
+              <span>${escapeHtml(opt)}</span>
+              <span class="text-cyan-300 font-mono">${count}票 (${pct}%)</span>
+            </div>
+            <div class="w-full bg-slate-900 rounded-full h-4 overflow-hidden border border-slate-700">
+              <div class="bg-gradient-to-r from-cyan-500 to-blue-500 h-full transition-all duration-500 rounded-full" style="width: ${pct}%"></div>
+            </div>
+          </div>
+        `;
+        container.insertAdjacentHTML('beforeend', barHtml);
+      });
+    }
+
     async function initApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
+        const { data } = await supabaseClient.from('app_state').select('*').eq('room_id', ROOM_ID).maybeSingle();
         if (data) {
           renderScreen(data.status, data.question);
           if (data.question) questionInput.value = data.question;
@@ -293,16 +503,20 @@
           renderScreen('waiting', '');
         }
 
-        const { data: commentsData } = await supabaseClient.from('comments').select('*').order('created_at', { ascending: false });
+        const { data: commentsData } = await supabaseClient.from('comments').select('*').eq('room_id', ROOM_ID).order('created_at', { ascending: false });
         if (commentsData) {
           allComments = commentsData;
           updateFilterOptions();
           renderLogs();
         }
 
+        checkActivePoll();
+
         supabaseClient.channel('admin_app_state')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-            renderScreen(payload.new.status, payload.new.question);
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
+            if (payload.new && payload.new.room_id === ROOM_ID) {
+              renderScreen(payload.new.status, payload.new.question);
+            }
           })
           .subscribe();
 
@@ -311,6 +525,14 @@
             handleNewComment(payload.new, true);
           })
           .subscribe();
+
+        supabaseClient.channel('admin_polls')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, () => checkActivePoll())
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'poll_votes' }, () => {
+            if (currentPoll) fetchAndRenderResults(currentPoll);
+          })
+          .subscribe();
+
       } catch (e) {
         console.error(e);
         renderScreen('waiting', '');
