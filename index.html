@@ -72,10 +72,6 @@
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
       : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // URLパラメータからルームIDを取得（指定がなければ 'default'）
-    const urlParams = new URLSearchParams(window.location.search);
-    const ROOM_ID = urlParams.get('room') || 'default';
-
     const viewWaiting = document.getElementById('view-waiting');
     const viewActive = document.getElementById('view-active');
     const questionTextElement = document.getElementById('question-text');
@@ -103,12 +99,11 @@
 
       let targetQ = currentQuestionText || questionTextElement.textContent.trim();
       if (!targetQ || targetQ === '（質問文がありません）') {
-        const { data } = await supabaseClient.from('app_state').select('question').eq('room_id', ROOM_ID).maybeSingle();
+        const { data } = await supabaseClient.from('app_state').select('question').eq('id', 1).maybeSingle();
         if (data && data.question) targetQ = data.question;
       }
 
       const { error } = await supabaseClient.from('comments').insert([{ 
-        room_id: ROOM_ID,
         text: text, 
         question_text: targetQ || '無題の質問' 
       }]);
@@ -122,11 +117,10 @@
       }
     }
 
-    /* --- アンケート処理（参加者用：公開中のみ表示） --- */
+    /* --- アンケート処理（参加者用） --- */
     async function checkParticipantPoll() {
       const { data } = await supabaseClient.from('polls')
         .select('*')
-        .eq('room_id', ROOM_ID)
         .eq('is_active', true)
         .eq('is_published', true)
         .order('id', { ascending: false })
@@ -191,16 +185,18 @@
 
     async function initUserApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('room_id', ROOM_ID).maybeSingle();
+        // 初期状態を直接読み込み
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderUserView(data.status, data.question);
         }
 
         checkParticipantPoll();
 
+        // リアルタイム更新の直接受信
         supabaseClient.channel('user_app_state')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-            if (payload.new && payload.new.room_id === ROOM_ID) {
+            if (payload.new) {
               renderUserView(payload.new.status, payload.new.question);
             }
           })
