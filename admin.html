@@ -136,8 +136,9 @@
   </main>
 
   <script>
-    const SUPABASE_URL = 'https://qeazxtwhygvwjdnfrbqc.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlYXp4dHdoeWd2d2pkbmZyYnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MzMzODQsImV4cCI6MjEwMTUwOTM4NH0.w33yFeFNluFhMxUy2vJgk3Hb8wJB61mGl-mCG4Uuvps';
+    /* 授業用 (realtime-tool) の Supabase 情報 */
+    const SUPABASE_URL = 'https://fcdatnawceicpogimlyx.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGF0bmF3Y2VpY3BvZ2ltbHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjkwNDMsImV4cCI6MjEwMTUwNTA0M30.7IicVwInXzE2Q1TzImsi-R_6t8G4aE9nJpQ5-xX8a5g';
     
     const supabaseClient = window.supabase.createClient 
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
