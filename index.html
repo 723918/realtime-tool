@@ -9,20 +9,7 @@
 </head>
 <body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6">
 
-  <main class="max-w-md mx-auto w-full my-auto space-y-4">
-
-    <!-- 📊 リアルタイムアンケート回答カード（公開時のみ表示） -->
-    <div id="participant-poll-box" class="hidden bg-slate-900 rounded-2xl shadow-xl p-6 text-white border border-cyan-500/50">
-      <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs mb-2">
-        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
-        <span>LIVE アンケート開催中</span>
-      </div>
-      <h3 id="participant-poll-q" class="font-bold text-base mb-4 text-yellow-300 leading-relaxed"></h3>
-      <div id="participant-poll-options" class="grid grid-cols-1 gap-2.5"></div>
-      <p id="poll-voted-msg" class="hidden text-center text-xs text-emerald-400 font-bold mt-3">✓ 回答を送信しました！</p>
-    </div>
-
-    <!-- 通常の質問・コメントカード -->
+  <main class="max-w-md mx-auto w-full my-auto">
     <div id="status-card" class="bg-white rounded-2xl shadow-xl p-6 transition-all duration-300 border border-slate-100">
       
       <!-- 待機画面 -->
@@ -64,9 +51,8 @@
   </footer>
 
   <script>
-    /* 授業用 (realtime-tool) 専用 Supabase 接続情報 */
-    const SUPABASE_URL = 'https://ejffnserzocobjffdlrz.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFlYXp4dHdoeWd2d2pkbmZyYnFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MzMzODQsImV4cCI6MjEwMTUwOTM4NH0.w33yFeFNluFhMxUy2vJgk3Hb8wJB61mGl-mCG4Uuvps';
+    const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
     
     const supabaseClient = window.supabase.createClient 
       ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
@@ -92,17 +78,37 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
       }
     }
 
+    async function initUserApp() {
+      try {
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
+        if (data) {
+          renderUserView(data.status, data.question);
+        }
+
+        supabaseClient.channel('user_app_state')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
+            renderUserView(payload.new.status, payload.new.question);
+          })
+          .subscribe();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    // コメント送信処理
     async function sendComment(e) {
       e.preventDefault();
       const text = commentInput.value.trim();
       if (!text) return;
 
+      // 送信直前に画面から質問テキストをダイレクト取得（未分類化を鉄壁防止）
       let targetQ = currentQuestionText || questionTextElement.textContent.trim();
       if (!targetQ || targetQ === '（質問文がありません）') {
         const { data } = await supabaseClient.from('app_state').select('question').eq('id', 1).maybeSingle();
         if (data && data.question) targetQ = data.question;
       }
 
+      // 送信処理（question_text を確実に付与）
       const { error } = await supabaseClient.from('comments').insert([{ 
         text: text, 
         question_text: targetQ || '無題の質問' 
@@ -114,98 +120,6 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
         commentInput.value = '';
         sendMsg.classList.remove('hidden');
         setTimeout(() => sendMsg.classList.add('hidden'), 2000);
-      }
-    }
-
-    /* --- アンケート処理（参加者用） --- */
-    async function checkParticipantPoll() {
-      const { data } = await supabaseClient.from('polls')
-        .select('*')
-        .eq('is_active', true)
-        .eq('is_published', true)
-        .order('id', { ascending: false })
-        .limit(1);
-      
-      if (data && data.length > 0) {
-        renderPollForParticipant(data[0]);
-      } else {
-        document.getElementById('participant-poll-box').classList.add('hidden');
-      }
-    }
-
-    function renderPollForParticipant(poll) {
-      document.getElementById('participant-poll-box').classList.remove('hidden');
-      document.getElementById('participant-poll-q').textContent = 'Q: ' + poll.question;
-      
-      const votedKey = `voted_poll_${poll.id}`;
-      const hasVoted = localStorage.getItem(votedKey);
-      const optionsContainer = document.getElementById('participant-poll-options');
-      const msgEl = document.getElementById('poll-voted-msg');
-      optionsContainer.innerHTML = '';
-
-      if (hasVoted) {
-        msgEl.classList.remove('hidden');
-      } else {
-        msgEl.classList.add('hidden');
-      }
-
-      const opts = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options || '[]');
-
-      opts.forEach((opt, idx) => {
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = `w-full py-3 px-4 rounded-xl font-bold text-sm text-left border transition-all ${
-          hasVoted 
-            ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed' 
-            : 'bg-slate-800 hover:bg-cyan-900/50 border-cyan-500/50 text-cyan-200 active:scale-95'
-        }`;
-        btn.textContent = `${idx + 1}. ${opt}`;
-        btn.disabled = !!hasVoted;
-        btn.onclick = () => submitVote(poll.id, idx);
-        optionsContainer.appendChild(btn);
-      });
-    }
-
-    async function submitVote(pollId, optionIdx) {
-      const votedKey = `voted_poll_${pollId}`;
-      if (localStorage.getItem(votedKey)) return;
-
-      const { error } = await supabaseClient.from('poll_votes').insert([{
-        poll_id: pollId,
-        option_index: optionIdx
-      }]);
-
-      if (!error) {
-        localStorage.setItem(votedKey, 'true');
-        checkParticipantPoll();
-      } else {
-        console.error('投票エラー:', error);
-      }
-    }
-
-    async function initUserApp() {
-      try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
-        if (data) {
-          renderUserView(data.status, data.question);
-        }
-
-        checkParticipantPoll();
-
-        supabaseClient.channel('user_app_state')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-            if (payload.new) {
-              renderUserView(payload.new.status, payload.new.question);
-            }
-          })
-          .subscribe();
-
-        supabaseClient.channel('user_polls')
-          .on('postgres_changes', { event: '*', schema: 'public', table: 'polls' }, () => checkParticipantPoll())
-          .subscribe();
-
-      } catch(e) {
-        console.error(e);
       }
     }
 
