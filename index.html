@@ -64,7 +64,7 @@
   </footer>
 
   <script>
-    /* 授業用 (realtime-tool) の Supabase 情報 */
+    /* 授業用 (realtime-tool) 専用 Supabase 接続情報 */
     const SUPABASE_URL = 'https://fcdatnawceicpogimlyx.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZjZGF0bmF3Y2VpY3BvZ2ltbHl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU5MjkwNDMsImV4cCI6MjEwMTUwNTA0M30.7IicVwInXzE2Q1TzImsi-R_6t8G4aE9nJpQ5-xX8a5g';
     
@@ -185,7 +185,6 @@
 
     async function initUserApp() {
       try {
-        // 初期状態を直接読み込み
         const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
         if (data) {
           renderUserView(data.status, data.question);
@@ -193,7 +192,6 @@
 
         checkParticipantPoll();
 
-        // リアルタイム更新の直接受信
         supabaseClient.channel('user_app_state')
           .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
             if (payload.new) {
