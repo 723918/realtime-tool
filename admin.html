@@ -6,72 +6,153 @@
   <title>リアルタイム研修ツール - 管理画面</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-white min-h-screen p-6">
-  <div class="max-w-4xl mx-auto space-y-6">
-    <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700">
-      <h1 class="text-xl font-bold">リアルタイム研修ツール (管理画面)</h1>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col font-sans">
+
+  <!-- Header -->
+  <header class="bg-slate-900 border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-md">
+    <div class="flex items-center space-x-3">
+      <div class="bg-indigo-600 text-white p-2 rounded-lg flex items-center justify-center shadow-lg shadow-indigo-500/30">
+        <i class="fas fa-sliders-h text-lg"></i>
+      </div>
       <div>
-        ステータス: <span id="status-badge" class="px-3 py-1 rounded-full text-sm bg-yellow-500/20 text-yellow-300">待機中</span>
+        <h1 class="font-bold text-lg leading-tight">リアルタイムアンケート <span class="text-xs bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-2 py-0.5 rounded-full ml-2">ADMIN</span></h1>
+        <p class="text-xs text-slate-400">研修・イベント操作パネル</p>
       </div>
     </div>
+    <div class="flex items-center space-x-4">
+      <div id="connection-status" class="flex items-center space-x-2 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700/50">
+        <span class="w-2.5 h-2.5 rounded-full bg-yellow-400 animate-pulse"></span>
+        <span class="text-xs font-medium text-slate-300">接続中...</span>
+      </div>
+    </div>
+  </header>
 
-    <!-- 画面中央表示（投影用） -->
-    <div class="bg-slate-800/50 border border-slate-700 rounded-2xl p-8 text-center min-h-[250px] flex flex-col justify-center items-center">
-      <div class="text-xs text-slate-400 mb-2 uppercase tracking-widest font-semibold">現在表示中の質問</div>
-      <div id="display-q" class="text-3xl font-bold text-slate-300">〜 まもなく開始いたします 〜</div>
-    </div>
+  <!-- Main Container -->
+  <main class="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-    <!-- 操作パネル -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="md:col-span-2">
-        <textarea id="input-q" rows="4" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-4 text-white focus:outline-none focus:border-cyan-500" placeholder="表示する質問文を入力..."></textarea>
+    <!-- Control Left Column -->
+    <section class="lg:col-span-5 space-y-6">
+
+      <!-- Status Panel -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-xl">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-4 flex items-center">
+          <i class="fas fa-signal mr-2 text-indigo-400"></i>現在の配信ステータス
+        </h2>
+        <div class="flex items-center justify-between bg-slate-950 p-4 rounded-xl border border-slate-800">
+          <div>
+            <span class="text-xs text-slate-500 block mb-0.5">STATUS</span>
+            <span id="current-status-badge" class="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-slate-800 text-slate-400 border border-slate-700">
+              読み込み中
+            </span>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-500 block mb-0.5">回答数</span>
+            <span id="response-count" class="text-2xl font-black text-indigo-400">0</span>
+          </div>
+        </div>
       </div>
-      <div class="flex flex-col gap-3">
-        <button id="btn-show" class="flex-1 bg-cyan-600 hover:bg-cyan-500 font-bold rounded-xl transition">質問を表示する</button>
-        <button id="btn-wait" class="flex-1 bg-slate-700 hover:bg-slate-600 font-bold rounded-xl transition">待機中にする</button>
+
+      <!-- Main Action Controls -->
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-xl space-y-4">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center">
+          <i class="fas fa-edit mr-2 text-indigo-400"></i>質問文コントロール
+        </h2>
+        
+        <div>
+          <label class="block text-xs font-medium text-slate-400 mb-2">投影する質問文を入力</label>
+          <textarea id="question-input" rows="4" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition resize-none" placeholder="投じる質問文を入力してください..."></textarea>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button id="btn-publish" class="flex items-center justify-center space-x-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-4 rounded-xl transition shadow-lg shadow-indigo-600/20 active:scale-95">
+            <i class="fas fa-paper-plane"></i>
+            <span>質問を表示する</span>
+          </button>
+          <button id="btn-standby" class="flex items-center justify-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-3 px-4 rounded-xl transition border border-slate-700 active:scale-95">
+            <i class="fas fa-pause"></i>
+            <span>待機中にする</span>
+          </button>
+        </div>
       </div>
-    </div>
-  </div>
+
+    </section>
+
+    <!-- Preview / Screen Right Column -->
+    <section class="lg:col-span-7 flex flex-col">
+      <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 shadow-xl flex-1 flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center">
+            <i class="fas fa-desktop mr-2 text-indigo-400"></i>現在の投影画面プレビュー
+          </h2>
+          <span class="text-xs bg-slate-800 text-slate-400 px-2.5 py-1 rounded-md border border-slate-700/50">MAIN SCREEN</span>
+        </div>
+
+        <div class="flex-1 bg-slate-950 rounded-xl border border-slate-800/80 p-8 flex flex-col items-center justify-center text-center relative overflow-hidden min-h-[320px]">
+          <div class="absolute top-4 left-4 flex items-center space-x-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500/80"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-yellow-500/80"></span>
+            <span class="w-2.5 h-2.5 rounded-full bg-green-500/80"></span>
+          </div>
+
+          <div id="preview-container" class="space-y-4 max-w-lg">
+            <span class="text-xs font-bold tracking-widest text-indigo-400 uppercase bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">Q. CURRENT QUESTION</span>
+            <h3 id="preview-text" class="text-3xl font-black text-white leading-tight">〜 まもなく開始いたします 〜</h3>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
 
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuY2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMwNjMyODMsImV4cCI6MjAzODYzOTI4M30.c2z54t4GZlS3E3n7B4y-S4mXqB6D0Z8N5P_y4M6G4kE'; // 必要に応じてお持ちのanonキーを入力
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuY2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMwNjMyODMsImV4cCI6MjAzODYzOTI4M30.c2z54t4GZlS3E3n7B4y-S4mXqB6D0Z8N5P_y4M6G4kE';
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const inputQ = document.getElementById('input-q');
-    const displayQ = document.getElementById('display-q');
-    const statusBadge = document.getElementById('status-badge');
+    const qInput = document.getElementById('question-input');
+    const pText = document.getElementById('preview-text');
+    const badge = document.getElementById('current-status-badge');
+    const connStatus = document.getElementById('connection-status');
 
-    async function updateState(status, question) {
+    async function updateDB(status, question) {
       await supabase.from('app_state').upsert({ id: 1, status, question });
     }
 
-    document.getElementById('btn-show').onclick = () => {
-      const q = inputQ.value.trim();
+    document.getElementById('btn-publish').addEventListener('click', () => {
+      const q = qInput.value.trim();
       if (!q) return;
-      updateState('showing', q);
-    };
+      updateDB('showing', q);
+    });
 
-    document.getElementById('btn-wait').onclick = () => {
-      updateState('waiting', '');
-    };
+    document.getElementById('btn-standby').addEventListener('click', () => {
+      updateDB('waiting', '');
+    });
 
-    // リアルタイム受信
-    supabase.channel('app_state_change')
+    function renderState(data) {
+      if (!data) return;
+      if (data.status === 'showing') {
+        badge.textContent = '質問反映中';
+        badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+        pText.textContent = data.question;
+        qInput.value = data.question;
+      } else {
+        badge.textContent = '待機中';
+        badge.className = 'inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30';
+        pText.textContent = '〜 まもなく開始いたします 〜';
+      }
+    }
+
+    supabase.from('app_state').select('*').eq('id', 1).single().then(({ data }) => {
+      if (data) renderState(data);
+      connStatus.innerHTML = '<span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span><span class="text-xs font-medium text-emerald-300">接続完了</span>';
+    });
+
+    supabase.channel('app_state_realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-        const data = payload.new;
-        if (!data) return;
-        if (data.status === 'showing') {
-          statusBadge.textContent = '質問反映中';
-          statusBadge.className = 'px-3 py-1 rounded-full text-sm bg-emerald-500/20 text-emerald-300';
-          displayQ.textContent = data.question;
-        } else {
-          statusBadge.textContent = '待機中';
-          statusBadge.className = 'px-3 py-1 rounded-full text-sm bg-yellow-500/20 text-yellow-300';
-          displayQ.textContent = '〜 まもなく開始いたします 〜';
-        }
+        if (payload.new) renderState(payload.new);
       }).subscribe();
   </script>
 </body>
