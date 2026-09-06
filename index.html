@@ -6,17 +6,37 @@
   <title>リアルタイムアンケート</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-center items-center p-6 text-center">
-  <div id="box-wait" class="space-y-4">
-    <h1 class="text-3xl font-bold text-slate-200">〜 まもなく開始いたします 〜</h1>
-    <p class="text-slate-400 text-sm">画面を開いたままお待ちください</p>
-  </div>
+<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-center items-center p-4 font-sans">
 
-  <div id="box-show" class="hidden max-w-lg w-full bg-slate-800 border border-slate-700 rounded-2xl p-8 space-y-6">
-    <div class="text-xs text-cyan-400 font-bold uppercase tracking-widest">Q. 現在の質問</div>
-    <div id="question-text" class="text-2xl font-bold text-white leading-relaxed"></div>
-  </div>
+  <main class="w-full max-w-md mx-auto">
+    
+    <!-- 待機状態表示 -->
+    <div id="state-waiting" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl space-y-4">
+      <div class="w-16 h-16 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto border border-indigo-500/20">
+        <i class="fas fa-clock text-2xl animate-pulse"></i>
+      </div>
+      <h1 class="text-2xl font-black text-white leading-tight">〜 まもなく開始いたします 〜</h1>
+      <p class="text-xs text-slate-400 leading-relaxed">画面を開いたままお待ちください。<br>進行に合わせて自動的に切り替わります。</p>
+    </div>
+
+    <!-- 質問表示状態 -->
+    <div id="state-showing" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-4">
+        <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center">
+          <i class="fas fa-comment-dots mr-1.5"></i>Q. QUESTION
+        </span>
+        <span class="flex h-2 w-2 relative">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+        </span>
+      </div>
+
+      <div id="question-text" class="text-xl font-bold text-white leading-relaxed text-center py-4"></div>
+    </div>
+
+  </main>
 
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
@@ -24,31 +44,28 @@
 
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const boxWait = document.getElementById('box-wait');
-    const boxShow = document.getElementById('box-show');
-    const questionText = document.getElementById('question-text');
+    const sWait = document.getElementById('state-waiting');
+    const sShow = document.getElementById('state-showing');
+    const qText = document.getElementById('question-text');
 
-    function render(status, question) {
-      if (status === 'showing' && question) {
-        boxWait.classList.add('hidden');
-        boxShow.classList.remove('hidden');
-        questionText.textContent = question;
+    function render(data) {
+      if (data && data.status === 'showing' && data.question) {
+        sWait.classList.add('hidden');
+        sShow.classList.remove('hidden');
+        qText.textContent = data.question;
       } else {
-        boxShow.classList.add('hidden');
-        boxWait.classList.remove('hidden');
+        sShow.classList.add('hidden');
+        sWait.classList.remove('hidden');
       }
     }
 
-    // 初期取得
     supabase.from('app_state').select('*').eq('id', 1).single().then(({ data }) => {
-      if (data) render(data.status, data.question);
+      render(data);
     });
 
-    // リアルタイム同期
-    supabase.channel('app_state_change')
+    supabase.channel('app_state_user')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
-        const data = payload.new;
-        if (data) render(data.status, data.question);
+        render(payload.new);
       }).subscribe();
   </script>
 </body>
