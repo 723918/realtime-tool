@@ -91,6 +91,13 @@
       }
     }
 
+    async function fetchUserAppState() {
+      const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
+      if (data) {
+        renderUserView(data.status, data.question);
+      }
+    }
+
     async function sendComment(e) {
       e.preventDefault();
       const text = commentInput.value.trim();
@@ -116,7 +123,7 @@
       }
     }
 
-    /* --- アンケート処理（参加者用：公開中のみ表示） --- */
+    /* アンケート処理 */
     async function checkParticipantPoll() {
       const { data } = await supabaseClient.from('polls')
         .select('*')
@@ -142,11 +149,8 @@
       const msgEl = document.getElementById('poll-voted-msg');
       optionsContainer.innerHTML = '';
 
-      if (hasVoted) {
-        msgEl.classList.remove('hidden');
-      } else {
-        msgEl.classList.add('hidden');
-      }
+      if (hasVoted) msgEl.classList.remove('hidden');
+      else msgEl.classList.add('hidden');
 
       const opts = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options || '[]');
 
@@ -184,16 +188,16 @@
 
     async function initUserApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
-        if (data) {
-          renderUserView(data.status, data.question);
-        }
-
+        await fetchUserAppState();
         checkParticipantPoll();
 
+        // 校務ネット制限対策：1秒周期で自動同期
+        setInterval(fetchUserAppState, 1000);
+        setInterval(checkParticipantPoll, 2000);
+
         supabaseClient.channel('user_app_state')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-            renderUserView(payload.new.status, payload.new.question);
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
+            if (payload.new) renderUserView(payload.new.status, payload.new.question);
           })
           .subscribe();
 
