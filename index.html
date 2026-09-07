@@ -3,104 +3,55 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>管理・スクリーン投影 | Live Screen</title>
+  <title>イベント参加用 | Live App</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    .danmaku-item {
-      position: absolute;
-      white-space: nowrap;
-      font-size: 2.25rem;
-      font-weight: 800;
-      color: #ffffff;
-      text-shadow: 2px 2px 0px #000, -2px 2px 0px #000, 2px -2px 0px #000, -2px -2px 0px #000;
-      will-change: transform;
-      animation: danmaku 8s linear forwards;
-    }
-    @keyframes danmaku {
-      from { transform: translateX(100vw); }
-      to { transform: translateX(-100%); }
-    }
-  </style>
 </head>
-<body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between relative select-none">
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6">
 
-  <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
-    <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
-        <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600">
-          待機中
-        </span>
-      </div>
+  <main class="max-w-md mx-auto w-full my-auto space-y-4">
 
-      <div class="flex-1 max-w-xl flex gap-2">
-        <input type="text" id="question-input" placeholder="投映する質問文を入力..." 
-          class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-        <button id="btn-active" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
-          質問を表示する
-        </button>
-        <button id="btn-waiting" type="button" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
-          待機中にする
-        </button>
+    <div id="participant-poll-box" class="hidden bg-slate-900 rounded-2xl shadow-xl p-6 text-white border border-cyan-500/50">
+      <div class="flex items-center gap-2 text-cyan-400 font-bold text-xs mb-2">
+        <span class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></span>
+        <span>LIVE アンケート開催中</span>
       </div>
-
-      <div>
-        <button id="btn-toggle-view" type="button" class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow">
-          <span>📝 記録・アンケート管理</span>
-          <span id="header-comment-count" class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">0</span>
-        </button>
-      </div>
+      <h3 id="participant-poll-q" class="font-bold text-base mb-4 text-yellow-300 leading-relaxed"></h3>
+      <div id="participant-poll-options" class="grid grid-cols-1 gap-2.5"></div>
+      <p id="poll-voted-msg" class="hidden text-center text-xs text-emerald-400 font-bold mt-3">✓ 回答を送信しました！</p>
     </div>
-  </header>
 
-  <main id="view-screen" class="flex-1 flex flex-col items-center justify-center p-8 relative">
-    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto pointer-events-none mb-6"></div>
-
-    <div id="poll-active-view" class="hidden z-10 w-full max-w-2xl bg-slate-950/90 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl backdrop-blur">
-      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
-        <div class="flex items-center gap-2">
-          <span class="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-bold text-xs rounded-full border border-cyan-500/30">📊 アンケート集計中</span>
+    <div id="status-card" class="bg-white rounded-2xl shadow-xl p-6 transition-all duration-300 border border-slate-100">
+      
+      <div id="view-waiting" class="text-center py-8">
+        <div class="inline-block p-4 rounded-full bg-indigo-50 text-indigo-600 mb-4 animate-pulse">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
         </div>
-        <h3 id="active-poll-title" class="font-bold text-yellow-300 text-lg"></h3>
+        <h2 class="text-xl font-bold mb-2 text-slate-800">待機中</h2>
+        <p class="text-sm text-slate-500">画面が開くまでしばらくお待ちください...</p>
       </div>
-      <div id="poll-results-bars" class="space-y-4"></div>
-      <div class="text-right text-xs text-slate-400 mt-4">総投票数: <span id="total-votes-count" class="font-bold text-cyan-400 text-sm">0</span> 票</div>
-    </div>
 
-    <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+      <div id="view-active" class="hidden">
+        <span class="inline-block bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md mb-3">受付中の質問</span>
+        <h2 id="question-text" class="text-xl font-bold text-slate-900 mb-6 leading-relaxed"></h2>
+
+        <form id="comment-form" onsubmit="sendComment(event)" class="space-y-3">
+          <input type="text" id="comment-input" placeholder="コメントを入力（スクリーンに流れます）" required
+            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+          <button type="submit" id="send-btn" 
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-md">
+            送信する
+          </button>
+        </form>
+        <p id="send-msg" class="text-xs text-center text-emerald-600 font-bold mt-2 hidden">送信しました！</p>
+      </div>
+
+    </div>
   </main>
 
-  <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col gap-6">
-    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl">
-      <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-cyan-400">
-        <span>📊 アンケートの新規作成・事前ストック</span>
-      </h2>
-      <div class="space-y-3 mb-6 pb-6 border-b border-slate-800">
-        <input type="text" id="poll-question-input" placeholder="質問を入力" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <input type="text" id="poll-opt-0" value="はい" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-          <input type="text" id="poll-opt-1" value="いいえ" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-          <input type="text" id="poll-opt-2" placeholder="選択肢3" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-          <input type="text" id="poll-opt-3" placeholder="選択肢4" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
-        </div>
-        <button type="button" onclick="createPollStock()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 font-bold rounded-lg text-sm">
-          ➕ アンケートを保存（作成）する
-        </button>
-      </div>
-
-      <h3 class="text-sm font-bold text-slate-300 mb-3">📋 作成済みアンケート一覧</h3>
-      <div id="poll-stock-list" class="space-y-3 max-h-60 overflow-y-auto pr-1"></div>
-    </div>
-
-    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
-      <div class="flex justify-between items-center mb-6 pb-4 border-b border-slate-800">
-        <h2 class="text-xl font-bold text-slate-100">📝 コメント記録</h2>
-        <select id="select-question-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white"></select>
-      </div>
-      <div id="log-list" class="flex-1 overflow-y-auto max-h-[40vh] grid grid-cols-1 md:grid-cols-2 gap-3"></div>
-    </div>
-  </main>
+  <footer class="text-center text-xs text-slate-400 py-4">Live Interactive System</footer>
 
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
@@ -108,112 +59,95 @@
     
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const statusBadge = document.getElementById('current-status-badge');
-    const displayArea = document.getElementById('display-area');
-    const questionInput = document.getElementById('question-input');
-    const btnActive = document.getElementById('btn-active');
-    const btnWaiting = document.getElementById('btn-waiting');
-    const viewScreen = document.getElementById('view-screen');
-    const viewLogs = document.getElementById('view-logs');
-    const btnToggleView = document.getElementById('btn-toggle-view');
+    const viewWaiting = document.getElementById('view-waiting');
+    const viewActive = document.getElementById('view-active');
+    const questionTextElement = document.getElementById('question-text');
+    const commentInput = document.getElementById('comment-input');
+    const sendMsg = document.getElementById('send-msg');
 
-    let allComments = [];
-    let isShowingLogs = false;
-    let currentActiveQuestion = '';
-    let currentPoll = null;
+    let currentQuestionText = '';
 
-    function renderScreen(status, question) {
-      currentActiveQuestion = question || '';
+    function renderUserView(status, question) {
+      currentQuestionText = question || '';
       if ((status === 'active' || status === 'showing') && question) {
-        statusBadge.textContent = '質問投映中';
-        statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        displayArea.innerHTML = `<h1 class="text-4xl md:text-6xl font-extrabold text-white">${escapeHtml(question)}</h1>`;
+        viewWaiting.classList.add('hidden');
+        viewActive.classList.remove('hidden');
+        questionTextElement.textContent = currentQuestionText;
       } else {
-        statusBadge.textContent = '待機中';
-        statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600';
-        displayArea.innerHTML = `<h1 class="text-3xl md:text-5xl font-bold text-slate-400">〜 まもなく開始いたします 〜</h1>`;
+        viewActive.classList.add('hidden');
+        viewWaiting.classList.remove('hidden');
       }
     }
 
-    btnActive.addEventListener('click', () => updateState('active'));
-    btnWaiting.addEventListener('click', () => updateState('waiting'));
-    btnToggleView.addEventListener('click', () => {
-      isShowingLogs = !isShowingLogs;
-      viewScreen.classList.toggle('hidden', isShowingLogs);
-      viewLogs.classList.toggle('hidden', !isShowingLogs);
-      if(isShowingLogs) loadPollStocks();
-    });
-
-    async function updateState(newStatus) {
-      const qText = questionInput.value.trim();
-      renderScreen(newStatus, qText);
-      try {
-        // id:1 の行を上書き更新
-        await supabaseClient.from('app_state').upsert({ id: 1, status: newStatus, question: qText });
-      } catch (e) {}
-    }
-
-    async function createPollStock() {
-      const question = document.getElementById('poll-question-input').value.trim();
-      if (!question) return;
-      const options = [];
-      for (let i = 0; i < 4; i++) {
-        const val = document.getElementById(`poll-opt-${i}`).value.trim();
-        if (val) options.push(val);
-      }
-      try {
-        await supabaseClient.from('polls').insert([{ question, options, is_active: false, is_published: false }]);
-        document.getElementById('poll-question-input').value = '';
-        loadPollStocks();
-      } catch(e){}
-    }
-
-    async function loadPollStocks() {
-      try {
-        const { data } = await supabaseClient.from('polls').select('*').order('id', { ascending: false });
-        const container = document.getElementById('poll-stock-list');
-        if (!data || data.length === 0) return;
-        container.innerHTML = data.map(p => `
-          <div class="bg-slate-900 border p-3 rounded-xl flex justify-between items-center">
-            <div>
-              <div class="font-bold text-sm text-yellow-300">Q. ${escapeHtml(p.question)}</div>
-            </div>
-            <div>
-              ${!p.is_active ? `<button onclick="startPoll(${p.id})" class="px-3 py-1.5 bg-indigo-600 text-white font-bold text-xs rounded-lg">🚀 開始</button>` : `<button onclick="stopPoll(${p.id})" class="px-3 py-1.5 bg-red-600 text-white font-bold text-xs rounded-lg">🛑 終了</button>`}
-            </div>
-          </div>
-        `).join('');
-      } catch(e){}
-    }
-
-    async function startPoll(id) {
-      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('is_active', true);
-      await supabaseClient.from('polls').update({ is_active: true, is_published: true }).eq('id', id);
-      loadPollStocks();
-    }
-
-    async function stopPoll(id) {
-      await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('id', id);
-      loadPollStocks();
-    }
-
-    function escapeHtml(str) {
-      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
-
-    async function fetchStatePeriodically() {
+    // 1秒ごとに質問と状態を直接フェッチ
+    async function fetchUserAppState() {
       try {
         const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
-        if (data) renderScreen(data.status, data.question);
-      } catch (e) {}
+        if (data) {
+          renderUserView(data.status, data.question);
+        }
+      } catch(e){}
     }
 
-    function initApp() {
-      fetchStatePeriodically();
-      setInterval(fetchStatePeriodically, 1000);
+    async function sendComment(e) {
+      e.preventDefault();
+      const text = commentInput.value.trim();
+      if (!text) return;
+      let targetQ = currentQuestionText || questionTextElement.textContent.trim();
+      try {
+        await supabaseClient.from('comments').insert([{ text: text, question_text: targetQ || '無題の質問' }]);
+        commentInput.value = '';
+        sendMsg.classList.remove('hidden');
+        setTimeout(() => sendMsg.classList.add('hidden'), 2000);
+      } catch(e){}
     }
 
-    initApp();
+    async function checkParticipantPoll() {
+      try {
+        const { data } = await supabaseClient.from('polls').select('*').eq('is_active', true).eq('is_published', true).order('id', { ascending: false }).limit(1);
+        if (data && data.length > 0) renderPollForParticipant(data[0]);
+        else document.getElementById('participant-poll-box').classList.add('hidden');
+      } catch(e){}
+    }
+
+    function renderPollForParticipant(poll) {
+      document.getElementById('participant-poll-box').classList.remove('hidden');
+      document.getElementById('participant-poll-q').textContent = 'Q: ' + poll.question;
+      const votedKey = `voted_poll_${poll.id}`;
+      const hasVoted = localStorage.getItem(votedKey);
+      const optionsContainer = document.getElementById('participant-poll-options');
+      optionsContainer.innerHTML = '';
+
+      const opts = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options || '[]');
+      opts.forEach((opt, idx) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `w-full py-3 px-4 rounded-xl font-bold text-sm text-left border transition-all ${hasVoted ? 'bg-slate-800/50 border-slate-700 text-slate-500 cursor-not-allowed' : 'bg-slate-800 hover:bg-cyan-900/50 border-cyan-500/50 text-cyan-200 active:scale-95'}`;
+        btn.textContent = `${idx + 1}. ${opt}`;
+        btn.disabled = !!hasVoted;
+        btn.onclick = () => submitVote(poll.id, idx);
+        optionsContainer.appendChild(btn);
+      });
+    }
+
+    async function submitVote(pollId, optionIdx) {
+      const votedKey = `voted_poll_${pollId}`;
+      if (localStorage.getItem(votedKey)) return;
+      try {
+        await supabaseClient.from('poll_votes').insert([{ poll_id: pollId, option_index: optionIdx }]);
+        localStorage.setItem(votedKey, 'true');
+        checkParticipantPoll();
+      } catch(e){}
+    }
+
+    function initUserApp() {
+      fetchUserAppState();
+      checkParticipantPoll();
+      setInterval(fetchUserAppState, 1000);
+      setInterval(checkParticipantPoll, 1000);
+    }
+
+    initUserApp();
   </script>
 </body>
 </html>
