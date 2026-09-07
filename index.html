@@ -3,133 +3,127 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>リアルタイムアンケート</title>
+  <title>イベント参加用 | Live App</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
-  <style>
-    @keyframes danmaku { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }
-    .danmaku-item { position: absolute; white-space: nowrap; font-weight: bold; font-size: 1.8rem; color: #ffffff; text-shadow: 2px 2px 6px rgba(0,0,0,0.9); animation: danmaku 7s linear forwards; pointer-events: none; z-index: 50; }
-  </style>
+  <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
-<body class="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-center items-center p-4 font-sans overflow-hidden relative">
+<body class="bg-slate-100 min-h-screen text-slate-800 flex flex-col justify-between p-4 sm:p-6">
 
-  <div id="danmaku-container" class="fixed inset-0 pointer-events-none overflow-hidden"></div>
-
-  <main class="w-full max-w-md mx-auto z-10 space-y-4">
-
-    <div id="box-wait" class="bg-slate-900 border border-slate-800 rounded-3xl p-8 text-center shadow-2xl space-y-3">
-      <div class="w-12 h-12 bg-indigo-500/10 text-indigo-400 rounded-2xl flex items-center justify-center mx-auto border border-indigo-500/20 mb-2">
-        <i class="fas fa-clock text-xl animate-pulse"></i>
+  <main class="max-w-md mx-auto w-full my-auto">
+    <div id="status-card" class="bg-white rounded-2xl shadow-xl p-6 transition-all duration-300 border border-slate-100">
+      
+      <!-- 待機画面 -->
+      <div id="view-waiting" class="text-center py-8">
+        <div class="inline-block p-4 rounded-full bg-indigo-50 text-indigo-600 mb-4 animate-pulse">
+          <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h2 class="text-xl font-bold mb-2 text-slate-800">待機中</h2>
+        <p class="text-sm text-slate-500">画面が開くまでしばらくお待ちください...</p>
       </div>
-      <h1 class="text-2xl font-bold text-slate-200">〜 まもなく開始いたします 〜</h1>
-      <p class="text-xs text-slate-400">画面を開いたままお待ちください</p>
-    </div>
 
-    <div id="box-show" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-      <div class="text-xs font-bold text-indigo-400 uppercase tracking-wider flex items-center justify-between">
-        <span>Q. CURRENT QUESTION</span>
-        <span class="flex h-2 w-2 relative">
-          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-          <span class="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      <!-- 質問・回答画面 -->
+      <div id="view-active" class="hidden">
+        <span class="inline-block bg-indigo-100 text-indigo-700 text-xs font-bold px-2.5 py-1 rounded-md mb-3">
+          受付中の質問
         </span>
-      </div>
-      <div id="q-text" class="text-xl font-bold text-white leading-relaxed text-center py-2"></div>
-      
-      <div class="pt-4 border-t border-slate-800 space-y-3">
-        <input type="text" id="comment-input" class="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-sm text-white focus:outline-none focus:border-indigo-500" placeholder="回答や意見を入力...">
-        <button id="btn-send-comment" class="w-full bg-indigo-600 hover:bg-indigo-500 font-bold py-3 rounded-xl transition text-sm shadow-lg shadow-indigo-600/20">送信して画面に流す</button>
-      </div>
-    </div>
+        <h2 id="question-text" class="text-xl font-bold text-slate-900 mb-6 leading-relaxed">
+          <!-- 質問文 -->
+        </h2>
 
-    <div id="box-poll" class="hidden bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-      <div class="text-xs font-bold text-cyan-400 uppercase tracking-wider">POLL. アンケート</div>
-      <div id="poll-title-text" class="text-lg font-bold text-white"></div>
-      
-      <div id="poll-options-container" class="space-y-2.5 pt-2"></div>
-      <p id="poll-voted-msg" class="hidden text-center text-xs text-emerald-400 font-bold pt-2">✓ 投票を送信しました</p>
-    </div>
+        <form id="comment-form" onsubmit="sendComment(event)" class="space-y-3">
+          <input type="text" id="comment-input" placeholder="コメントを入力（スクリーンに流れます）" required
+            class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all">
+          <button type="submit" id="send-btn" 
+            class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl text-sm transition-colors shadow-md">
+            送信する
+          </button>
+        </form>
+        <p id="send-msg" class="text-xs text-center text-emerald-600 font-bold mt-2 hidden">送信しました！</p>
+      </div>
 
+    </div>
   </main>
+
+  <footer class="text-center text-xs text-slate-400 py-4">
+    Live Interactive System
+  </footer>
 
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuY2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjMwNjMyODMsImV4cCI6MjAzODYzOTI4M30.c2z54t4GZlS3E3n7B4y-S4mXqB6D0Z8N5P_y4M6G4kE';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
+    
+    const supabaseClient = window.supabase.createClient 
+      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+      : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    const boxWait = document.getElementById('box-wait');
-    const boxShow = document.getElementById('box-show');
-    const boxPoll = document.getElementById('box-poll');
-    const qText = document.getElementById('q-text');
-    const pollTitleText = document.getElementById('poll-title-text');
-    const pollOptionsContainer = document.getElementById('poll-options-container');
-    const pollVotedMsg = document.getElementById('poll-voted-msg');
+    const viewWaiting = document.getElementById('view-waiting');
+    const viewActive = document.getElementById('view-active');
+    const questionTextElement = document.getElementById('question-text');
     const commentInput = document.getElementById('comment-input');
-    const danmakuContainer = document.getElementById('danmaku-container');
+    const sendMsg = document.getElementById('send-msg');
 
-    function spawnDanmaku(text) {
-      if (!text) return;
-      const el = document.createElement('div');
-      el.className = 'danmaku-item';
-      el.textContent = text;
-      el.style.top = Math.floor(Math.random() * 65 + 10) + '%';
-      danmakuContainer.appendChild(el);
-      setTimeout(() => el.remove(), 7000);
+    let currentQuestionText = '';
+
+    function renderUserView(status, question) {
+      currentQuestionText = question || '';
+      if (status === 'active') {
+        viewWaiting.classList.add('hidden');
+        viewActive.classList.remove('hidden');
+        questionTextElement.textContent = currentQuestionText || '（質問文がありません）';
+      } else {
+        viewActive.classList.add('hidden');
+        viewWaiting.classList.remove('hidden');
+      }
     }
 
-    document.getElementById('btn-send-comment').onclick = async () => {
+    async function initUserApp() {
+      try {
+        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
+        if (data) {
+          renderUserView(data.status, data.question);
+        }
+
+        supabaseClient.channel('user_app_state')
+          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
+            renderUserView(payload.new.status, payload.new.question);
+          })
+          .subscribe();
+      } catch(e) {
+        console.error(e);
+      }
+    }
+
+    // コメント送信処理
+    async function sendComment(e) {
+      e.preventDefault();
       const text = commentInput.value.trim();
       if (!text) return;
-      commentInput.value = '';
-      
-      await supabase.from('app_responses').insert({ type: 'comment', content: text });
-      await supabase.from('app_state').update({ last_comment: text, updated_at: new Date().toISOString() }).eq('id', 1);
-    };
 
-    window.votePoll = async function(optionText) {
-      await supabase.from('app_responses').insert({ type: 'poll_vote', content: optionText });
-      await supabase.from('app_state').update({ updated_at: new Date().toISOString() }).eq('id', 1);
-      pollVotedMsg.classList.remove('hidden');
-      const buttons = pollOptionsContainer.querySelectorAll('button');
-      buttons.forEach(b => b.disabled = true);
-    };
-
-    function render(data) {
-      if (!data) return;
-
-      if (data.status === 'showing') {
-        boxWait.classList.add('hidden');
-        boxPoll.classList.add('hidden');
-        boxShow.classList.remove('hidden');
-        qText.textContent = data.question;
-      } else if (data.status === 'poll') {
-        boxWait.classList.add('hidden');
-        boxShow.classList.add('hidden');
-        boxPoll.classList.remove('hidden');
-        pollTitleText.textContent = data.question;
-        pollVotedMsg.classList.add('hidden');
-
-        const opts = data.poll_options || [];
-        pollOptionsContainer.innerHTML = opts.map(opt => `
-          <button onclick="votePoll('${opt.replace(/'/g, "\\'")}')" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition text-left flex justify-between items-center">
-            <span>${opt}</span>
-            <i class="fas fa-chevron-right text-xs text-slate-500"></i>
-          </button>
-        `).join('');
-      } else {
-        boxShow.classList.add('hidden');
-        boxPoll.classList.add('hidden');
-        boxWait.classList.remove('hidden');
+      // 送信直前に画面から質問テキストをダイレクト取得（未分類化を鉄壁防止）
+      let targetQ = currentQuestionText || questionTextElement.textContent.trim();
+      if (!targetQ || targetQ === '（質問文がありません）') {
+        const { data } = await supabaseClient.from('app_state').select('question').eq('id', 1).maybeSingle();
+        if (data && data.question) targetQ = data.question;
       }
 
-      if (data.last_comment) spawnDanmaku(data.last_comment);
+      // 送信処理（question_text を確実に付与）
+      const { error } = await supabaseClient.from('comments').insert([{ 
+        text: text, 
+        question_text: targetQ || '無題の質問' 
+      }]);
+
+      if (error) {
+        console.error('送信エラー:', error);
+      } else {
+        commentInput.value = '';
+        sendMsg.classList.remove('hidden');
+        setTimeout(() => sendMsg.classList.add('hidden'), 2000);
+      }
     }
 
-    supabase.from('app_state').select('*').eq('id', 1).single().then(({ data }) => render(data));
-
-    supabase.channel('user_realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => render(payload.new))
-      .subscribe();
+    initUserApp();
   </script>
 </body>
 </html>
