@@ -46,7 +46,6 @@
         </button>
       </div>
 
-      <!-- 画面切替ボタン -->
       <div>
         <button id="btn-toggle-view" type="button" class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow">
           <span>📝 記録一覧を見る</span>
@@ -58,10 +57,11 @@
 
   <!-- 2. 投影スクリーンエリア -->
   <main id="view-screen" class="flex-1 flex items-center justify-center p-8 relative">
-    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto">
+    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto pointer-events-none">
       <!-- JavaScriptで動的書き換え -->
     </div>
 
+    <!-- 弾幕コメントレイヤー -->
     <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
   </main>
 
@@ -77,10 +77,8 @@
           <p class="text-xs text-slate-400 mt-1">対象の質問を選択して回答を絞り込めます</p>
         </div>
 
-        <!-- 質問フィルタリング用ドロップダウン -->
         <div class="flex items-center gap-2">
           <select id="select-question-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 max-w-xs">
-            <!-- 動的追加 -->
           </select>
 
           <button id="btn-download-csv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow whitespace-nowrap">
@@ -89,7 +87,6 @@
         </div>
       </div>
 
-      <!-- コメント一覧リスト -->
       <div id="log-list" class="flex-1 overflow-y-auto max-h-[60vh] grid grid-cols-1 md:grid-cols-2 gap-3 pr-2">
         <p class="text-slate-500 text-center py-12 text-sm col-span-full">まだコメントはありません。</p>
       </div>
@@ -123,6 +120,10 @@
     let allComments = [];
     let isShowingLogs = false;
     let currentActiveQuestion = '';
+
+    // --- 【重なり防止ロジック用変数】 ---
+    const TOTAL_LANES = 6; // 6つの縦ライン（行）を用意
+    let lastUsedLaneIndex = -1;
 
     function renderScreen(status, question) {
       currentActiveQuestion = question || '';
@@ -163,8 +164,6 @@
         viewLogs.classList.remove('hidden');
         btnToggleView.innerHTML = `<span>📺 投映画面に戻る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
         btnToggleView.className = 'bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
-        
-        // 記録画面を開いた際、現在の質問を選んだ状態にする
         updateFilterOptions();
       } else {
         viewLogs.classList.add('hidden');
@@ -194,20 +193,31 @@
       }
     }
 
+    // --- 【重なりを劇的に減らす弾幕生成処理】 ---
     function spawnDanmaku(text) {
       const el = document.createElement('div');
       el.className = 'danmaku-item';
       el.textContent = text;
-      const topPos = Math.floor(Math.random() * 70) + 10;
-      el.style.top = `${topPos}%`;
+
+      // 1. 順番にレーン（行）を選び、連続で同じ行にならないように分散（順番繰り越し）
+      lastUsedLaneIndex = (lastUsedLaneIndex + 1) % TOTAL_LANES;
+      
+      // 2. 質問文（中央）を避けるため、画面の高さ 15% 〜 80% の範囲を6分割して配置
+      const startPercent = 15;
+      const endPercent = 80;
+      const step = (endPercent - startPercent) / (TOTAL_LANES - 1);
+      const laneTop = startPercent + (step * lastUsedLaneIndex);
+
+      // 3. 同じレーン内でも少し上下に揺らして自然に見せる（±2%の微ブレ）
+      const randomOffset = (Math.random() * 4) - 2;
+      el.style.top = `${laneTop + randomOffset}%`;
+
       danmakuContainer.appendChild(el);
       el.addEventListener('animationend', () => el.remove());
     }
 
-    // フィルターの選択肢（過去にあった質問リスト）を自動生成
     function updateFilterOptions() {
       const questions = Array.from(new Set(allComments.map(c => c.question_text || '（未分類/過去の質問）')));
-      
       const selectedVal = selectQuestionFilter.value || currentActiveQuestion || questions[0] || '';
 
       selectQuestionFilter.innerHTML = questions.map(q => 
@@ -219,11 +229,9 @@
       }
     }
 
-    // 選択中の質問のコメントのみを表示
     function renderLogs() {
       headerCommentCount.textContent = allComments.length;
       const targetQuestion = selectQuestionFilter.value;
-
       const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
 
       if (filtered.length === 0) {
