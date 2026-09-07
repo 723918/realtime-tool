@@ -55,7 +55,6 @@
       <p class="text-slate-500 mt-4 text-base">スマートフォンで手元の画面をご覧ください</p>
     </div>
 
-    <!-- アンケート集計 -->
     <div id="poll-active-view" class="hidden z-10 w-full max-w-2xl bg-slate-950/90 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl backdrop-blur">
       <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
         <span class="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-bold text-xs rounded-full border border-cyan-500/30">📊 アンケート集計中</span>
@@ -103,6 +102,12 @@
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
 
+    const getHeaders = () => ({
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
+    });
+
     const statusBadge = document.getElementById('current-status-badge');
     const displayArea = document.getElementById('display-area');
     const questionInput = document.getElementById('question-input');
@@ -138,7 +143,7 @@
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1`, {
           method: 'PATCH',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          headers: getHeaders(),
           body: JSON.stringify({ status: newStatus, question: qText })
         });
       } catch(e){}
@@ -155,7 +160,7 @@
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/polls`, {
           method: 'POST',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          headers: getHeaders(),
           body: JSON.stringify({ question, options, is_active: false, is_published: false })
         });
       } catch(e){}
@@ -166,7 +171,7 @@
     async function loadPollStocks() {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/polls?select=*&order=id.desc`, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          headers: getHeaders()
         });
         const data = await res.json();
         const container = document.getElementById('poll-stock-list');
@@ -186,12 +191,12 @@
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/polls?is_active=eq.true`, {
           method: 'PATCH',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          headers: getHeaders(),
           body: JSON.stringify({ is_active: false, is_published: false })
         });
         await fetch(`${SUPABASE_URL}/rest/v1/polls?id=eq.${id}`, {
           method: 'PATCH',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          headers: getHeaders(),
           body: JSON.stringify({ is_active: true, is_published: true })
         });
       } catch(e){}
@@ -202,7 +207,7 @@
       try {
         await fetch(`${SUPABASE_URL}/rest/v1/polls?id=eq.${id}`, {
           method: 'PATCH',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          headers: getHeaders(),
           body: JSON.stringify({ is_active: false, is_published: false })
         });
       } catch(e){}
@@ -212,10 +217,10 @@
     async function loadComments() {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/comments?select=*&order=id.desc`, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          headers: getHeaders()
         });
         allComments = await res.json();
-        document.getElementById('header-comment-count').textContent = allComments.length;
+        document.getElementById('header-comment-count').textContent = Array.isArray(allComments) ? allComments.length : 0;
         updateQuestionFilterOptions();
         renderCommentsFilter();
       } catch(e){}
@@ -223,6 +228,7 @@
 
     function updateQuestionFilterOptions() {
       const select = document.getElementById('select-question-filter');
+      if (!Array.isArray(allComments)) return;
       const questions = [...new Set(allComments.map(c => c.question_text || '無題の質問'))];
       select.innerHTML = '<option value="ALL">すべての質問を表示</option>' + questions.map(q => `<option value="${escapeHtml(q)}">${escapeHtml(q)}</option>`).join('');
     }
@@ -230,6 +236,7 @@
     function renderCommentsFilter() {
       const selected = document.getElementById('select-question-filter').value;
       const list = document.getElementById('log-list');
+      if (!Array.isArray(allComments)) return;
       const filtered = selected === 'ALL' ? allComments : allComments.filter(c => (c.question_text || '無題の質問') === selected);
       if (filtered.length === 0) { list.innerHTML = '<p class="text-slate-500 text-center py-12 text-sm col-span-full">コメントはありません。</p>'; return; }
       list.innerHTML = filtered.map(c => `
@@ -241,7 +248,7 @@
     }
 
     function downloadCSV() {
-      if (allComments.length === 0) return;
+      if (!Array.isArray(allComments) || allComments.length === 0) return;
       let csv = '質問文,コメント\n';
       allComments.forEach(c => {
         csv += `"${(c.question_text || '').replace(/"/g, '""')}","${(c.text || '').replace(/"/g, '""')}"\n`;
@@ -258,7 +265,7 @@
     async function sync() {
       try {
         const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?select=*&order=id.desc&limit=1`, {
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          headers: getHeaders()
         });
         const data = await res.json();
         if (data && data.length > 0) renderScreen(data[0].status, data[0].question);
