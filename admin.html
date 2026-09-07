@@ -24,291 +24,250 @@
 </head>
 <body class="bg-slate-900 text-white min-h-screen flex flex-col justify-between relative select-none">
 
-  <!-- 1. 管理操作ヘッダー -->
+  <!-- ヘッダー -->
   <header class="bg-slate-800/90 backdrop-blur border-b border-slate-700 p-4 z-50 shadow-lg">
     <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
       <div class="flex items-center gap-3">
         <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
-        <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
-          取得中...
-        </span>
+        <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600">待機中</span>
       </div>
 
       <div class="flex-1 max-w-xl flex gap-2">
         <input type="text" id="question-input" placeholder="投映する質問文を入力..." 
           class="flex-1 bg-slate-950 border border-slate-700 rounded-lg px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
-        <button id="btn-active" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
-          質問を表示する
-        </button>
-        <button id="btn-waiting" type="button" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">
-          待機中にする
-        </button>
+        <button id="btn-active" type="button" class="bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">質問を表示する</button>
+        <button id="btn-waiting" type="button" class="bg-slate-700 hover:bg-slate-600 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors">待機中にする</button>
       </div>
 
-      <!-- 画面切替ボタン -->
       <div>
         <button id="btn-toggle-view" type="button" class="bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow">
-          <span>📝 記録一覧を見る</span>
+          <span>📝 記録・アンケート管理</span>
           <span id="header-comment-count" class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">0</span>
         </button>
       </div>
     </div>
   </header>
 
-  <!-- 2. 投影スクリーンエリア -->
-  <main id="view-screen" class="flex-1 flex items-center justify-center p-8 relative">
-    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto">
-      <!-- JavaScriptで動的書き換え -->
+  <!-- 投影スクリーン -->
+  <main id="view-screen" class="flex-1 flex flex-col items-center justify-center p-8 relative">
+    <div id="display-area" class="text-center z-10 max-w-4xl mx-auto pointer-events-none mb-6">
+      <h1 class="text-3xl md:text-5xl font-bold text-slate-400 tracking-wider">〜 まもなく開始いたします 〜</h1>
+      <p class="text-slate-500 mt-4 text-base">スマートフォンで手元の画面をご覧ください</p>
+    </div>
+
+    <!-- アンケート集計 -->
+    <div id="poll-active-view" class="hidden z-10 w-full max-w-2xl bg-slate-950/90 border border-cyan-500/50 rounded-2xl p-6 shadow-2xl backdrop-blur">
+      <div class="flex justify-between items-center border-b border-slate-800 pb-3 mb-4">
+        <span class="px-2.5 py-1 bg-cyan-500/20 text-cyan-300 font-bold text-xs rounded-full border border-cyan-500/30">📊 アンケート集計中</span>
+        <h3 id="active-poll-title" class="font-bold text-yellow-300 text-lg"></h3>
+      </div>
+      <div id="poll-results-bars" class="space-y-4"></div>
+      <div class="text-right text-xs text-slate-400 mt-4">総投票数: <span id="total-votes-count" class="font-bold text-cyan-400 text-sm">0</span> 票</div>
     </div>
 
     <div id="danmaku-container" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
   </main>
 
-  <!-- 3. 質問ごとのコメント記録一覧画面 -->
-  <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col">
+  <!-- 管理パネル -->
+  <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col gap-6">
+    <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl">
+      <h2 class="text-lg font-bold mb-3 text-cyan-400">📊 アンケートの新規作成・事前ストック</h2>
+      <div class="space-y-3 mb-6 pb-6 border-b border-slate-800">
+        <input type="text" id="poll-question-input" placeholder="質問を入力" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-400">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <input type="text" id="poll-opt-0" value="はい" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-1" value="いいえ" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-2" placeholder="選択肢3（任意）" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+          <input type="text" id="poll-opt-3" placeholder="選択肢4（任意）" class="bg-slate-900 border border-slate-700 rounded-lg p-2 text-sm text-white">
+        </div>
+        <button type="button" onclick="createPollStock()" class="w-full py-2.5 bg-gradient-to-r from-cyan-600 to-blue-600 font-bold rounded-lg text-sm">➕ アンケートを保存（作成）する</button>
+      </div>
+
+      <h3 class="text-sm font-bold text-slate-300 mb-3">📋 作成済みアンケート一覧</h3>
+      <div id="poll-stock-list" class="space-y-3 max-h-60 overflow-y-auto pr-1"></div>
+    </div>
+
     <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
-      
       <div class="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-slate-800">
-        <div>
-          <h2 class="text-xl font-bold text-slate-100 flex items-center gap-2">
-            📝 質問ごとのコメント記録
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">対象の質問を選択して回答を絞り込めます</p>
-        </div>
-
-        <!-- 質問フィルタリング用ドロップダウン -->
+        <div><h2 class="text-xl font-bold text-slate-100">📝 質問ごとのコメント記録</h2></div>
         <div class="flex items-center gap-2">
-          <select id="select-question-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 max-w-xs">
-            <!-- 動的追加 -->
-          </select>
-
-          <button id="btn-download-csv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow whitespace-nowrap">
-            📥 この質問のCSV出力
-          </button>
+          <select id="select-question-filter" onchange="renderCommentsFilter()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white max-w-xs"></select>
+          <button id="btn-download-csv" onclick="downloadCSV()" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors">📥 CSV出力</button>
         </div>
       </div>
-
-      <!-- コメント一覧リスト -->
-      <div id="log-list" class="flex-1 overflow-y-auto max-h-[60vh] grid grid-cols-1 md:grid-cols-2 gap-3 pr-2">
-        <p class="text-slate-500 text-center py-12 text-sm col-span-full">まだコメントはありません。</p>
-      </div>
-
+      <div id="log-list" class="flex-1 overflow-y-auto max-h-[40vh] grid grid-cols-1 md:grid-cols-2 gap-3 pr-2"></div>
     </div>
   </main>
 
   <script>
     const SUPABASE_URL = 'https://ejffnsefzocobjffdlrz.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVqZmZuc2Vmem9jb2JqZmZkbHJ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU3NTYzOTcsImV4cCI6MjEwMTMzMjM5N30.fXnGiT7ORh74UmfDwGc0WvWSC5qUTex9u_6HjvVuACw';
-    
-    const supabaseClient = window.supabase.createClient 
-      ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-      : window.supabase.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const statusBadge = document.getElementById('current-status-badge');
     const displayArea = document.getElementById('display-area');
     const questionInput = document.getElementById('question-input');
-    const danmakuContainer = document.getElementById('danmaku-container');
-    const btnActive = document.getElementById('btn-active');
-    const btnWaiting = document.getElementById('btn-waiting');
-    
     const viewScreen = document.getElementById('view-screen');
     const viewLogs = document.getElementById('view-logs');
-    const btnToggleView = document.getElementById('btn-toggle-view');
-    const headerCommentCount = document.getElementById('header-comment-count');
-    const logList = document.getElementById('log-list');
-    const btnDownloadCsv = document.getElementById('btn-download-csv');
-    const selectQuestionFilter = document.getElementById('select-question-filter');
-
     let allComments = [];
     let isShowingLogs = false;
-    let currentActiveQuestion = '';
+
+    document.getElementById('btn-active').addEventListener('click', () => updateState('active'));
+    document.getElementById('btn-waiting').addEventListener('click', () => updateState('waiting'));
+    document.getElementById('btn-toggle-view').addEventListener('click', () => {
+      isShowingLogs = !isShowingLogs;
+      viewScreen.classList.toggle('hidden', isShowingLogs);
+      viewLogs.classList.toggle('hidden', !isShowingLogs);
+      if(isShowingLogs) { loadPollStocks(); loadComments(); }
+    });
 
     function renderScreen(status, question) {
-      currentActiveQuestion = question || '';
-      if (status === 'active') {
+      if (status === 'active' && question) {
         statusBadge.textContent = '質問投映中';
         statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30';
-        displayArea.innerHTML = `
-          <div class="inline-block bg-indigo-500/10 text-indigo-400 font-bold px-4 py-1.5 rounded-full text-sm mb-6 border border-indigo-500/20">
-            Q. CURRENT QUESTION
-          </div>
-          <h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-wide drop-shadow-md">
-            ${question || '（質問文が設定されていません）'}
-          </h1>
-        `;
+        displayArea.innerHTML = `<div class="inline-block bg-indigo-500/10 text-indigo-400 font-bold px-4 py-1.5 rounded-full text-sm mb-6 border border-indigo-500/20">Q. CURRENT QUESTION</div><h1 class="text-4xl md:text-6xl font-extrabold text-white leading-tight tracking-wide drop-shadow-md">${escapeHtml(question)}</h1>`;
       } else {
         statusBadge.textContent = '待機中';
         statusBadge.className = 'px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600';
-        displayArea.innerHTML = `
-          <h1 class="text-3xl md:text-5xl font-bold text-slate-400 tracking-wider">
-            〜 まもなく開始いたします 〜
-          </h1>
-          <p class="text-slate-500 mt-4 text-base">スマートフォンで手元の画面をご覧ください</p>
-        `;
-      }
-    }
-
-    btnActive.addEventListener('click', () => updateState('active'));
-    btnWaiting.addEventListener('click', () => updateState('waiting'));
-    btnToggleView.addEventListener('click', toggleViewMode);
-    btnDownloadCsv.addEventListener('click', downloadCSV);
-    selectQuestionFilter.addEventListener('change', renderLogs);
-
-    function toggleViewMode() {
-      isShowingLogs = !isShowingLogs;
-
-      if (isShowingLogs) {
-        viewScreen.classList.add('hidden');
-        viewLogs.classList.remove('hidden');
-        btnToggleView.innerHTML = `<span>📺 投映画面に戻る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
-        btnToggleView.className = 'bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
-        
-        // 記録画面を開いた際、現在の質問を選んだ状態にする
-        updateFilterOptions();
-      } else {
-        viewLogs.classList.add('hidden');
-        viewScreen.classList.remove('hidden');
-        btnToggleView.innerHTML = `<span>📝 記録一覧を見る</span> <span class="bg-amber-800/60 text-amber-200 text-xs px-2 py-0.5 rounded-full">${allComments.length}</span>`;
-        btnToggleView.className = 'bg-amber-600 hover:bg-amber-500 text-white text-sm font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1.5 shadow';
+        displayArea.innerHTML = `<h1 class="text-3xl md:text-5xl font-bold text-slate-400 tracking-wider">〜 まもなく開始いたします 〜</h1><p class="text-slate-500 mt-4 text-base">スマートフォンで手元の画面をご覧ください</p>`;
       }
     }
 
     async function updateState(newStatus) {
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
-
-      const { error } = await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
-      if (error) console.error('DB更新エラー:', error);
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/app_state?id=eq.1`, {
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ status: newStatus, question: qText })
+        });
+      } catch(e){}
     }
 
-    function handleNewComment(commentObj, isLive = true) {
-      if (!allComments.some(c => c.id === commentObj.id)) {
-        allComments.unshift(commentObj);
-        updateFilterOptions();
-        renderLogs();
-
-        if (isLive) {
-          spawnDanmaku(commentObj.text);
-        }
+    async function createPollStock() {
+      const question = document.getElementById('poll-question-input').value.trim();
+      if (!question) return;
+      const options = [];
+      for (let i = 0; i < 4; i++) {
+        const val = document.getElementById(`poll-opt-${i}`).value.trim();
+        if (val) options.push(val);
       }
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/polls`, {
+          method: 'POST',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question, options, is_active: false, is_published: false })
+        });
+      } catch(e){}
+      document.getElementById('poll-question-input').value = '';
+      loadPollStocks();
     }
 
-    function spawnDanmaku(text) {
-      const el = document.createElement('div');
-      el.className = 'danmaku-item';
-      el.textContent = text;
-      const topPos = Math.floor(Math.random() * 70) + 10;
-      el.style.top = `${topPos}%`;
-      danmakuContainer.appendChild(el);
-      el.addEventListener('animationend', () => el.remove());
-    }
-
-    // フィルターの選択肢（過去にあった質問リスト）を自動生成
-    function updateFilterOptions() {
-      const questions = Array.from(new Set(allComments.map(c => c.question_text || '（未分類/過去の質問）')));
-      
-      const selectedVal = selectQuestionFilter.value || currentActiveQuestion || questions[0] || '';
-
-      selectQuestionFilter.innerHTML = questions.map(q => 
-        `<option value="${escapeHtml(q)}" ${q === selectedVal ? 'selected' : ''}>Q: ${escapeHtml(q)}</option>`
-      ).join('');
-
-      if (questions.length === 0) {
-        selectQuestionFilter.innerHTML = '<option value="">質問データなし</option>';
-      }
-    }
-
-    // 選択中の質問のコメントのみを表示
-    function renderLogs() {
-      headerCommentCount.textContent = allComments.length;
-      const targetQuestion = selectQuestionFilter.value;
-
-      const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
-
-      if (filtered.length === 0) {
-        logList.innerHTML = '<p class="text-slate-500 text-center py-12 text-sm col-span-full">この質問に対するコメントはまだありません。</p>';
-        return;
-      }
-
-      logList.innerHTML = filtered.map((c, index) => {
-        const timeStr = c.created_at ? new Date(c.created_at).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '直前';
-        const isLatest = index === 0 ? 'border-indigo-500/50 bg-indigo-950/40' : 'border-slate-800 bg-slate-900/60';
-
-        return `
-          <div class="border ${isLatest} p-4 rounded-xl flex justify-between items-start gap-3 shadow-sm">
-            <span class="text-slate-100 text-base font-semibold leading-snug break-all">${escapeHtml(c.text)}</span>
-            <span class="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded whitespace-nowrap">${timeStr}</span>
+    async function loadPollStocks() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/polls?select=*&order=id.desc`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        const data = await res.json();
+        const container = document.getElementById('poll-stock-list');
+        if (!data || data.length === 0) { container.innerHTML = '<p class="text-xs text-slate-500">作成済みのアンケートはありません。</p>'; return; }
+        container.innerHTML = data.map(p => `
+          <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex justify-between items-center">
+            <div><div class="font-bold text-sm text-yellow-300">Q. ${escapeHtml(p.question)}</div></div>
+            <div>
+              ${!p.is_active ? `<button onclick="startPoll(${p.id})" class="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs rounded-lg">🚀 開始</button>` : `<button onclick="stopPoll(${p.id})" class="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-xs rounded-lg">🛑 終了</button>`}
+            </div>
           </div>
-        `;
-      }).join('');
+        `).join('');
+      } catch(e){}
+    }
+
+    async function startPoll(id) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/polls?is_active=eq.true`, {
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: false, is_published: false })
+        });
+        await fetch(`${SUPABASE_URL}/rest/v1/polls?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: true, is_published: true })
+        });
+      } catch(e){}
+      loadPollStocks();
+    }
+
+    async function stopPoll(id) {
+      try {
+        await fetch(`${SUPABASE_URL}/rest/v1/polls?id=eq.${id}`, {
+          method: 'PATCH',
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ is_active: false, is_published: false })
+        });
+      } catch(e){}
+      loadPollStocks();
+    }
+
+    async function loadComments() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/comments?select=*&order=id.desc`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        allComments = await res.json();
+        document.getElementById('header-comment-count').textContent = allComments.length;
+        updateQuestionFilterOptions();
+        renderCommentsFilter();
+      } catch(e){}
+    }
+
+    function updateQuestionFilterOptions() {
+      const select = document.getElementById('select-question-filter');
+      const questions = [...new Set(allComments.map(c => c.question_text || '無題の質問'))];
+      select.innerHTML = '<option value="ALL">すべての質問を表示</option>' + questions.map(q => `<option value="${escapeHtml(q)}">${escapeHtml(q)}</option>`).join('');
+    }
+
+    function renderCommentsFilter() {
+      const selected = document.getElementById('select-question-filter').value;
+      const list = document.getElementById('log-list');
+      const filtered = selected === 'ALL' ? allComments : allComments.filter(c => (c.question_text || '無題の質問') === selected);
+      if (filtered.length === 0) { list.innerHTML = '<p class="text-slate-500 text-center py-12 text-sm col-span-full">コメントはありません。</p>'; return; }
+      list.innerHTML = filtered.map(c => `
+        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
+          <div class="text-xs text-indigo-400 font-bold mb-1">Q. ${escapeHtml(c.question_text || '無題')}</div>
+          <div class="text-sm text-slate-200">${escapeHtml(c.text)}</div>
+        </div>
+      `).join('');
     }
 
     function downloadCSV() {
-      const targetQuestion = selectQuestionFilter.value;
-      const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
-
-      if (filtered.length === 0) {
-        alert('出力できるコメントがありません。');
-        return;
-      }
-
-      let csvContent = `\uFEFF質問内容: "${targetQuestion.replace(/"/g, '""')}"\n`;
-      csvContent += '日時,コメント内容\n';
-
-      filtered.forEach(c => {
-        const time = c.created_at ? new Date(c.created_at).toLocaleString('ja-JP') : '';
-        const text = `"${(c.text || '').replace(/"/g, '""')}"`;
-        csvContent += `${time},${text}\n`;
+      if (allComments.length === 0) return;
+      let csv = '質問文,コメント\n';
+      allComments.forEach(c => {
+        csv += `"${(c.question_text || '').replace(/"/g, '""')}","${(c.text || '').replace(/"/g, '""')}"\n`;
       });
-
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `記録_${targetQuestion.slice(0,10)}_${new Date().toISOString().slice(0,10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `comments_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
     }
 
-    function escapeHtml(str) {
-      return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-    }
+    function escapeHtml(str) { return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
-    async function initApp() {
+    async function sync() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
-        if (data) {
-          renderScreen(data.status, data.question);
-          if (data.question) questionInput.value = data.question;
-        } else {
-          renderScreen('waiting', '');
-        }
-
-        const { data: commentsData } = await supabaseClient.from('comments').select('*').order('created_at', { ascending: false });
-        if (commentsData) {
-          allComments = commentsData;
-          updateFilterOptions();
-          renderLogs();
-        }
-
-        supabaseClient.channel('admin_app_state')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-            renderScreen(payload.new.status, payload.new.question);
-          })
-          .subscribe();
-
-        supabaseClient.channel('admin_comments')
-          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'comments' }, payload => {
-            handleNewComment(payload.new, true);
-          })
-          .subscribe();
-      } catch (e) {
-        console.error(e);
-        renderScreen('waiting', '');
-      }
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/app_state?select=*&order=id.desc&limit=1`, {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        const data = await res.json();
+        if (data && data.length > 0) renderScreen(data[0].status, data[0].question);
+      } catch(e){}
     }
 
-    initApp();
+    setInterval(sync, 1000);
+    setInterval(loadComments, 2000);
+    sync();
   </script>
 </body>
 </html>
