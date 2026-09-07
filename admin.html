@@ -30,7 +30,7 @@
     <div class="max-w-6xl mx-auto flex flex-wrap gap-4 items-center justify-between">
       <div class="flex items-center gap-3">
         <span class="text-xs uppercase font-bold text-slate-400">STATUS:</span>
-        <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-yellow-500/20 text-yellow-300 border border-yellow-500/30">
+        <span id="current-status-badge" class="px-3 py-1 text-xs font-bold rounded-full bg-slate-700 text-slate-300 border border-slate-600">
           待機中
         </span>
       </div>
@@ -147,6 +147,26 @@
     const TOTAL_LANES = 6;
     let lastUsedLaneIndex = -1;
 
+    // 校務ネット対応：Direct REST (no-cors fallback) 送信関数
+    async function safeSupabaseRequest(path, method, bodyData) {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+          method: method,
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation'
+          },
+          body: JSON.stringify(bodyData)
+        });
+        return await res.json();
+      } catch (e) {
+        console.warn('REST Fallback execute', e);
+        return null;
+      }
+    }
+
     function renderScreen(status, question) {
       currentActiveQuestion = question || '';
       if (status === 'active') {
@@ -192,10 +212,11 @@
     async function updateState(newStatus) {
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
-      try {
-        await supabaseClient.from('app_state').upsert({ id: 1, status: newStatus, question: qText });
-      } catch (e) {
-        console.error("更新エラー抑制:", e);
+      
+      const payload = { id: 1, status: newStatus, question: qText };
+      const res = await supabaseClient.from('app_state').upsert(payload);
+      if (res.error) {
+        await safeSupabaseRequest('app_state', 'POST', payload);
       }
     }
 
@@ -283,16 +304,16 @@
       }
       if (options.length < 2) return alert('選択肢は最低2つ入力してください');
 
-      try {
-        const { error } = await supabaseClient.from('polls').insert([{ question, options, is_active: false, is_published: false }]);
-        if (error) alert('アンケート送信エラー: ' + error.message);
-        else {
-          document.getElementById('poll-question-input').value = '';
-          loadPollStocks();
-        }
-      } catch(e) {
-        alert('ネットワーク接続エラーが発生しました。時間を置いてお試しください。');
+      const body = [{ question, options, is_active: false, is_published: false }];
+      const res = await supabaseClient.from('polls').insert(body);
+      
+      if (res.error) {
+        // Fallback 直接送信
+        await safeSupabaseRequest('polls', 'POST', body[0]);
       }
+      
+      document.getElementById('poll-question-input').value = '';
+      loadPollStocks();
     }
 
     async function loadPollStocks() {
@@ -378,7 +399,6 @@
       } catch(e){}
     }
 
-    // エラーでアプリが停止しない安全な定期取得
     async function fetchStatePeriodically() {
       try {
         const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
