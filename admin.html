@@ -189,22 +189,22 @@
       }
     }
 
-    // --- 【質問領域を避けてランダムに流す処理】 ---
+    // --- 【質問領域（30%〜70%）を絶対に避けてランダム表示する処理】 ---
     function spawnDanmaku(text) {
       const el = document.createElement('div');
       el.className = 'danmaku-item';
       el.textContent = text;
 
-      // 中央（35%〜60%）を避け、上部（10%〜30%）と下部（65%〜85%）の安全ゾーンを定義
-      const safeLanes = [10, 15, 20, 25, 30, 65, 70, 75, 80, 85];
+      // 中央の質問文エリア（30%〜70%）を避け、画面の上部と下部のみの安全領域
+      const safeLanes = [12, 16, 20, 24, 28, 72, 76, 80, 84, 88];
 
       // ランダムに高さを選択
       const randomIndex = Math.floor(Math.random() * safeLanes.length);
-      const baseTop = safeLanes[randomIndex];
+      const laneTop = safeLanes[randomIndex];
 
-      // 自然に見せるための微ランダム調整（±2%）
-      const randomOffset = (Math.random() * 4) - 2;
-      el.style.top = `${baseTop + randomOffset}%`;
+      // 微ランダムで自然な高さを演出
+      const randomOffset = (Math.random() * 3) - 1.5;
+      el.style.top = `${laneTop + randomOffset}%`;
 
       danmakuContainer.appendChild(el);
       el.addEventListener('animationend', () => el.remove());
