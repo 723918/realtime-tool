@@ -78,14 +78,10 @@
 
   <!-- 3. 質問ごとのコメント記録＆アンケート管理画面 -->
   <main id="view-logs" class="flex-1 hidden p-6 max-w-5xl mx-auto w-full z-30 flex flex-col gap-6">
-    
-    <!-- アンケート管理パネル -->
     <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl">
       <h2 class="text-lg font-bold mb-3 flex items-center gap-2 text-cyan-400">
         <span>📊 アンケートの新規作成・事前ストック</span>
       </h2>
-      
-      <!-- 新規作成フォーム -->
       <div class="space-y-3 mb-6 pb-6 border-b border-slate-800">
         <input type="text" id="poll-question-input" placeholder="質問を入力（例：今日の研修内容は分かりやすかったですか？）" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-sm text-white focus:outline-none focus:border-cyan-400">
         <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -99,14 +95,12 @@
         </button>
       </div>
 
-      <!-- 保存済みアンケート一覧（目隠し/公開コントロール） -->
       <h3 class="text-sm font-bold text-slate-300 mb-3">📋 作成済みアンケート一覧（公開／伏せるの切り替え）</h3>
       <div id="poll-stock-list" class="space-y-3 max-h-60 overflow-y-auto pr-1">
         <p class="text-xs text-slate-500 py-2">作成済みのアンケートはありません。</p>
       </div>
     </div>
 
-    <!-- コメント記録一覧 -->
     <div class="bg-slate-950 border border-slate-800 rounded-2xl p-6 shadow-2xl flex-1 flex flex-col">
       <div class="flex flex-wrap justify-between items-center gap-4 mb-6 pb-4 border-b border-slate-800">
         <div>
@@ -119,7 +113,6 @@
         <div class="flex items-center gap-2">
           <select id="select-question-filter" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 max-w-xs">
           </select>
-
           <button id="btn-download-csv" type="button" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow whitespace-nowrap">
             📥 この質問のCSV出力
           </button>
@@ -196,7 +189,6 @@
 
     function toggleViewMode() {
       isShowingLogs = !isShowingLogs;
-
       if (isShowingLogs) {
         viewScreen.classList.add('hidden');
         viewLogs.classList.remove('hidden');
@@ -216,7 +208,8 @@
       const qText = questionInput.value.trim();
       renderScreen(newStatus, qText);
 
-      const { error } = await supabaseClient.from('app_state').update({ status: newStatus, question: qText }).eq('id', 1);
+      // upsertを使用してデータの更新または新規作成を確実に保証
+      const { error } = await supabaseClient.from('app_state').upsert({ id: 1, status: newStatus, question: qText });
       if (error) console.error('DB更新エラー:', error);
     }
 
@@ -225,10 +218,7 @@
         allComments.unshift(commentObj);
         updateFilterOptions();
         renderLogs();
-
-        if (isLive) {
-          spawnDanmaku(commentObj.text);
-        }
+        if (isLive) spawnDanmaku(commentObj.text);
       }
     }
 
@@ -238,7 +228,6 @@
       el.textContent = text;
 
       lastUsedLaneIndex = (lastUsedLaneIndex + 1) % TOTAL_LANES;
-      
       const startPercent = 15;
       const endPercent = 80;
       const step = (endPercent - startPercent) / (TOTAL_LANES - 1);
@@ -259,9 +248,7 @@
         `<option value="${escapeHtml(q)}" ${q === selectedVal ? 'selected' : ''}>Q: ${escapeHtml(q)}</option>`
       ).join('');
 
-      if (questions.length === 0) {
-        selectQuestionFilter.innerHTML = '<option value="">質問データなし</option>';
-      }
+      if (questions.length === 0) selectQuestionFilter.innerHTML = '<option value="">質問データなし</option>';
     }
 
     function renderLogs() {
@@ -291,10 +278,7 @@
       const targetQuestion = selectQuestionFilter.value;
       const filtered = allComments.filter(c => (c.question_text || '（未分類/過去の質問）') === targetQuestion);
 
-      if (filtered.length === 0) {
-        alert('出力できるコメントがありません。');
-        return;
-      }
+      if (filtered.length === 0) return alert('出力できるコメントがありません。');
 
       let csvContent = `\uFEFF質問内容: "${targetQuestion.replace(/"/g, '""')}"\n`;
       csvContent += '日時,コメント内容\n';
@@ -318,9 +302,7 @@
       return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    /* --- 📊 アンケート高度管理機能 --- */
-    
-    // 1. アンケートを新規ストック作成
+    /* アンケート機能 */
     async function createPollStock() {
       const question = document.getElementById('poll-question-input').value.trim();
       if (!question) return alert('質問文を入力してください');
@@ -339,16 +321,13 @@
         is_published: false
       }]);
 
-      if (error) {
-        alert('作成エラー');
-        console.error(error);
-      } else {
+      if (error) console.error(error);
+      else {
         document.getElementById('poll-question-input').value = '';
         loadPollStocks();
       }
     }
 
-    // 2. 作成済みアンケートの読み込み
     async function loadPollStocks() {
       const { data } = await supabaseClient.from('polls').select('*').order('id', { ascending: false });
       const container = document.getElementById('poll-stock-list');
@@ -394,7 +373,6 @@
       }).join('');
     }
 
-    // 3. アンケートの開始
     async function startPoll(id) {
       await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('is_active', true);
       await supabaseClient.from('polls').update({ is_active: true, is_published: true }).eq('id', id);
@@ -402,21 +380,18 @@
       checkActivePoll();
     }
 
-    // 4. 公開 / 伏せる の切り替え
     async function togglePublish(id, targetState) {
       await supabaseClient.from('polls').update({ is_published: targetState }).eq('id', id);
       loadPollStocks();
       checkActivePoll();
     }
 
-    // 5. アンケートの終了
     async function stopPoll(id) {
       await supabaseClient.from('polls').update({ is_active: false, is_published: false }).eq('id', id);
       loadPollStocks();
       checkActivePoll();
     }
 
-    // 6. アンケートの削除
     async function deletePoll(id) {
       if (!confirm('このアンケートを削除しますか？')) return;
       await supabaseClient.from('polls').delete().eq('id', id);
@@ -424,7 +399,6 @@
       checkActivePoll();
     }
 
-    // 7. 現在のアクティブアンケートの監視＆描画
     async function checkActivePoll() {
       const { data } = await supabaseClient.from('polls').select('*').eq('is_active', true).order('id', { ascending: false }).limit(1);
       
@@ -449,7 +423,6 @@
       }
     }
 
-    // 8. 投票結果の棒グラフ集計描画
     async function fetchAndRenderResults(poll) {
       const { data: votes } = await supabaseClient.from('poll_votes').select('option_index').eq('poll_id', poll.id);
       const total = votes ? votes.length : 0;
@@ -486,15 +459,19 @@
       });
     }
 
+    async function fetchStatePeriodically() {
+      const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
+      if (data) {
+        renderScreen(data.status, data.question);
+        if (data.question && document.activeElement !== questionInput) {
+          questionInput.value = data.question;
+        }
+      }
+    }
+
     async function initApp() {
       try {
-        const { data } = await supabaseClient.from('app_state').select('*').eq('id', 1).maybeSingle();
-        if (data) {
-          renderScreen(data.status, data.question);
-          if (data.question) questionInput.value = data.question;
-        } else {
-          renderScreen('waiting', '');
-        }
+        await fetchStatePeriodically();
 
         const { data: commentsData } = await supabaseClient.from('comments').select('*').order('created_at', { ascending: false });
         if (commentsData) {
@@ -505,9 +482,13 @@
 
         checkActivePoll();
 
+        // 校務ネット制限対策：1秒周期で自動取得
+        setInterval(fetchStatePeriodically, 1000);
+        setInterval(checkActivePoll, 2000);
+
         supabaseClient.channel('admin_app_state')
-          .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, payload => {
-            renderScreen(payload.new.status, payload.new.question);
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'app_state' }, payload => {
+            if (payload.new) renderScreen(payload.new.status, payload.new.question);
           })
           .subscribe();
 
@@ -526,7 +507,6 @@
 
       } catch (e) {
         console.error(e);
-        renderScreen('waiting', '');
       }
     }
 
