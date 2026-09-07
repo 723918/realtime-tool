@@ -72,24 +72,24 @@
       setTimeout(() => el.remove(), 7000);
     }
 
-    // 自由記述コメント送信
+    // コメント送信
     document.getElementById('btn-send-comment').onclick = async () => {
       const text = commentInput.value.trim();
       if (!text) return;
       commentInput.value = '';
       
-      // DB記録＆弾幕トリガー更新
       await supabase.from('app_responses').insert({ type: 'comment', content: text });
-      await supabase.from('app_state').update({ last_comment: text, updated_at: new Date() }).eq('id', 1);
+      await supabase.from('app_state').update({ last_comment: text, updated_at: new Date().toISOString() }).eq('id', 1);
     };
 
-    // アンケート投票送信
-    async function votePoll(optionText) {
+    // 投票送信
+    window.votePoll = async function(optionText) {
       await supabase.from('app_responses').insert({ type: 'poll_vote', content: optionText });
+      await supabase.from('app_state').update({ updated_at: new Date().toISOString() }).eq('id', 1);
       pollVotedMsg.classList.remove('hidden');
       const buttons = pollOptionsContainer.querySelectorAll('button');
       buttons.forEach(b => b.disabled = true);
-    }
+    };
 
     // 状態描画
     function render(data) {
@@ -107,8 +107,8 @@
         pollTitleText.textContent = data.question;
         pollVotedMsg.classList.add('hidden');
 
-        // 選択肢ボタン動的生成
-        pollOptionsContainer.innerHTML = (data.poll_options || []).map(opt => `
+        const opts = data.poll_options || [];
+        pollOptionsContainer.innerHTML = opts.map(opt => `
           <button onclick="votePoll('${opt.replace(/'/g, "\\'")}')" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 font-bold py-3 px-4 rounded-xl text-sm transition text-left flex justify-between items-center">
             <span>${opt}</span>
             <i class="fas fa-chevron-right text-xs text-slate-500"></i>
@@ -123,6 +123,7 @@
       if (data.last_comment) spawnDanmaku(data.last_comment);
     }
 
+    // 初期取得とリアルタイム登録
     supabase.from('app_state').select('*').eq('id', 1).single().then(({ data }) => render(data));
 
     supabase.channel('user_realtime')
